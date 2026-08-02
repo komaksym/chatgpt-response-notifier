@@ -9,13 +9,13 @@ function loadWorker() {
   const context = {
     console,
     Date,
+    tabsGet: async () => ({ active: false, windowId: 1 }),
     storageGet: async () => ({
       enabled: true,
       soundEnabled: false,
       tabMarkerEnabled: false
     }),
     storageSet: async () => {},
-    isSourceTabVisible: async () => false,
     markSourceTab: async () => ({ ok: true }),
     createNotification: async (_id, options) => {
       notificationOptions = options;
