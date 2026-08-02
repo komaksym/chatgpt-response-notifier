@@ -44,6 +44,17 @@ function truncate(text, maxLength = 220) {
     : `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+function notificationTitle(eventType, pageTitle, maxLength = 100) {
+  const status = eventType === 'action_required' ? 'Action needed' : 'Response ready';
+  const normalizedPageTitle = String(pageTitle || '').replace(/\s+/g, ' ').trim();
+  if (!normalizedPageTitle || normalizedPageTitle.toLowerCase() === 'chatgpt') {
+    return `ChatGPT · ${status}`;
+  }
+
+  const available = Math.max(1, maxLength - status.length - 3);
+  return `${status} · ${truncate(normalizedPageTitle, available)}`;
+}
+
 async function runNotificationTest() {
   const permissionLevel = await getPermissionLevel();
   if (permissionLevel !== 'granted') {
