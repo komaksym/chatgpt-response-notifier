@@ -22,7 +22,6 @@ async function handleChatGPTEvent(message, sender) {
     return { ok: true, skipped: 'source_visible' };
   }
 
-  const isAction = event.type === 'action_required';
   const body = truncate(event.message);
   const pageTitle = truncate(message?.page?.title || sender.tab.title || 'ChatGPT', 80);
   const marker = markerEnabled
@@ -32,7 +31,7 @@ async function handleChatGPTEvent(message, sender) {
   let createdId = null;
   if (notificationEnabled) {
     const notificationId = `chatgpt:${event.type}:${tabId}:${Date.now()}`;
-    const title = isAction ? 'ChatGPT needs your action' : 'ChatGPT response ready';
+    const title = notificationTitle(event.type, pageTitle);
     createdId = await createNotification(notificationId, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
