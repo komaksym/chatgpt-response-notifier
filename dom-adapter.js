@@ -91,6 +91,37 @@
     );
   }
 
+  function longestNormalizedText(elements) {
+    let longest = '';
+    for (const element of elements) {
+      for (const value of [element?.innerText, element?.textContent]) {
+        const text = normalizeText(value);
+        if (text.length > longest.length) longest = text;
+      }
+    }
+    return longest;
+  }
+
+  function assistantText(element) {
+    if (!element) return '';
+    const contentNodes = Array.from(
+      element.querySelectorAll?.(
+        '[data-message-content], .markdown, [class~="prose"]'
+      ) || []
+    );
+    return longestNormalizedText(contentNodes) || longestNormalizedText([element]);
+  }
+
+  function preview(value, maxLength = 220) {
+    const text = normalizeText(value);
+    if (text.length <= maxLength) return text;
+
+    const slice = text.slice(0, maxLength - 1);
+    const lastSpace = slice.lastIndexOf(' ');
+    const cutoff = lastSpace >= Math.floor(maxLength * 0.65) ? lastSpace : slice.length;
+    return `${slice.slice(0, cutoff).trimEnd()}…`;
+  }
+
   function tail(value, maxLength = 220) {
     const text = normalizeText(value);
     if (text.length <= maxLength) return text;
@@ -107,10 +138,8 @@
     const buttons = Array.from(documentObject.querySelectorAll('button,[role="button"]'));
 
     const lastAssistant = assistantNodes.at(-1);
-    const fullAssistantText = normalizeText(
-      lastAssistant?.innerText || lastAssistant?.textContent || ''
-    );
-    const lastAssistantText = tail(fullAssistantText);
+    const fullAssistantText = assistantText(lastAssistant);
+    const lastAssistantText = preview(fullAssistantText);
 
     const visibleButtons = buttons.filter((button) => isVisible(button, windowObject));
     const stopVisible = visibleButtons.some(isStopControl);
