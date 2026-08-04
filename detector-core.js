@@ -80,16 +80,11 @@
       }
       lastActionFingerprint = actionFingerprint;
 
-      const userAdded = userCount > lastUserCount;
       const assistantAdded = assistantCount > lastAssistantCount;
       const assistantChanged = Boolean(assistantSignature) && assistantSignature !== lastAssistantSignature;
       const conversationChanged =
         Boolean(conversationSignature) && conversationSignature !== lastConversationSignature;
       const hasAssistantSignal = assistantCount > 0 && Boolean(assistantSignature);
-
-      if (userAdded && !awaitingResponse) {
-        markUserSubmitted(now);
-      }
 
       const firstScanAfterSubmission = submissionBaselinePending;
       submissionBaselinePending = false;
@@ -97,7 +92,7 @@
       const strongStartSignal =
         (stopVisible && !lastStopVisible) ||
         (awaitingResponse && !sendVisible && lastSendVisible) ||
-        assistantAdded ||
+        (assistantAdded && awaitingResponse) ||
         (assistantChanged && awaitingResponse);
 
       if (strongStartSignal) {
