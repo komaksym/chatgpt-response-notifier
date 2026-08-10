@@ -80,11 +80,17 @@
       }
       lastActionFingerprint = actionFingerprint;
 
+      const userAdded = userCount > lastUserCount;
       const assistantAdded = assistantCount > lastAssistantCount;
       const assistantChanged = Boolean(assistantSignature) && assistantSignature !== lastAssistantSignature;
       const conversationChanged =
         Boolean(conversationSignature) && conversationSignature !== lastConversationSignature;
       const hasAssistantSignal = assistantCount > 0 && Boolean(assistantSignature);
+      const hadEstablishedAssistant = lastAssistantCount > 0 && Boolean(lastAssistantSignature);
+
+      if (userAdded && !awaitingResponse && hadEstablishedAssistant) {
+        markUserSubmitted(now);
+      }
 
       const firstScanAfterSubmission = submissionBaselinePending;
       submissionBaselinePending = false;
