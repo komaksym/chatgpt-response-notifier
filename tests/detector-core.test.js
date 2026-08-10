@@ -98,3 +98,44 @@ test('still notifies after an explicit local submission completes', () => {
     [{ type: 'response_complete', message: 'Fresh response.' }]
   );
 });
+
+test('infers a new submission when a user message is appended to an established conversation', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    conversationSignature: 'old-complete'
+  }));
+  detector.scan(snapshot({
+    now: 1000,
+    userCount: 2,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    conversationSignature: 'new-user'
+  }));
+  detector.scan(snapshot({
+    now: 1100,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'new-assistant',
+    assistantText: 'Fresh response.',
+    conversationSignature: 'new-complete'
+  }));
+
+  assert.deepEqual(
+    detector.scan(snapshot({
+      now: 1300,
+      userCount: 2,
+      assistantCount: 2,
+      assistantSignature: 'new-assistant',
+      assistantText: 'Fresh response.',
+      conversationSignature: 'new-complete'
+    })),
+    [{ type: 'response_complete', message: 'Fresh response.' }]
+  );
+});
