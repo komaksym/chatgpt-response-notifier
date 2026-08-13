@@ -91,6 +91,24 @@
     );
   }
 
+  function turnNodes(documentObject, role) {
+    const nodes = [];
+    const seen = new Set();
+    const selectors = [
+      '[data-message-author-role="' + role + '"]',
+      '[data-turn="' + role + '"]'
+    ];
+
+    for (const selector of selectors) {
+      for (const node of Array.from(documentObject.querySelectorAll(selector))) {
+        if (seen.has(node)) continue;
+        seen.add(node);
+        nodes.push(node);
+      }
+    }
+    return nodes;
+  }
+
   function longestNormalizedText(elements) {
     let longest = '';
     for (const element of elements) {
@@ -106,7 +124,7 @@
     if (!element) return '';
     const contentNodes = Array.from(
       element.querySelectorAll?.(
-        '[data-message-content], .markdown, [class~="prose"]'
+        '[data-message-content], .markdown, .whitespace-pre-wrap, [class~="prose"]'
       ) || []
     );
     return longestNormalizedText(contentNodes) || longestNormalizedText([element]);
@@ -129,12 +147,8 @@
   }
 
   function collectSnapshot(documentObject, windowObject, now = Date.now()) {
-    const assistantNodes = Array.from(
-      documentObject.querySelectorAll('[data-message-author-role="assistant"]')
-    );
-    const userNodes = Array.from(
-      documentObject.querySelectorAll('[data-message-author-role="user"]')
-    );
+    const assistantNodes = turnNodes(documentObject, 'assistant');
+    const userNodes = turnNodes(documentObject, 'user');
     const buttons = Array.from(documentObject.querySelectorAll('button,[role="button"]'));
 
     const lastAssistant = assistantNodes.at(-1);

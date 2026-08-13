@@ -69,3 +69,42 @@ test('uses the beginning of a long response for the preview', () => {
   assert.match(snapshot.lastAssistantText, /^Important answer first\./);
   assert.match(snapshot.lastAssistantText, /…$/);
 });
+
+test('collects current ChatGPT data-turn wrappers', () => {
+  const content = {
+    innerText: 'Modern assistant response.',
+    textContent: 'Modern assistant response.'
+  };
+  const assistant = {
+    innerText: 'Modern assistant response.',
+    textContent: 'Modern assistant response.',
+    querySelectorAll: (selector) => selector.includes('.markdown') ? [content] : []
+  };
+  const user = {
+    innerText: 'Modern user prompt.',
+    textContent: 'Modern user prompt.'
+  };
+  const root = {
+    innerText: 'Modern user prompt. Modern assistant response.',
+    textContent: 'Modern user prompt. Modern assistant response.'
+  };
+  const documentObject = {
+    body: root,
+    querySelector(selector) {
+      return selector === 'main' ? root : null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '[data-turn="assistant"]') return [assistant];
+      if (selector === '[data-turn="user"]') return [user];
+      if (selector === 'button,[role="button"]') return [];
+      return [];
+    }
+  };
+
+  const snapshot = collectSnapshot(documentObject, windowObject, 1);
+
+  assert.equal(snapshot.assistantCount, 1);
+  assert.equal(snapshot.userCount, 1);
+  assert.equal(snapshot.lastAssistantText, 'Modern assistant response.');
+  assert.notEqual(snapshot.lastAssistantSignature, '');
+});
