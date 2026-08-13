@@ -99,8 +99,14 @@
       '[data-turn="' + role + '"]'
     ];
 
-    for (const selector of selectors) {
+    for (const [index, selector] of selectors.entries()) {
       for (const node of Array.from(documentObject.querySelectorAll(selector))) {
+        if (
+          index > 0 &&
+          node.querySelectorAll?.('[data-message-author-role="' + role + '"]').length
+        ) {
+          continue;
+        }
         if (seen.has(node)) continue;
         seen.add(node);
         nodes.push(node);

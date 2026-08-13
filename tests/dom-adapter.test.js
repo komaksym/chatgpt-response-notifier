@@ -108,3 +108,36 @@ test('collects current ChatGPT data-turn wrappers', () => {
   assert.equal(snapshot.lastAssistantText, 'Modern assistant response.');
   assert.notEqual(snapshot.lastAssistantSignature, '');
 });
+
+test('counts a current ChatGPT turn once when it contains a legacy message node', () => {
+  const message = {
+    innerText: 'Modern assistant response.',
+    textContent: 'Modern assistant response.',
+    querySelectorAll: () => []
+  };
+  const wrapper = {
+    innerText: 'Modern assistant response.',
+    textContent: 'Modern assistant response.',
+    querySelectorAll: (selector) => selector === '[data-message-author-role="assistant"]'
+      ? [message]
+      : []
+  };
+  const root = {
+    innerText: 'Modern assistant response.',
+    textContent: 'Modern assistant response.'
+  };
+  const documentObject = {
+    body: root,
+    querySelector: (selector) => selector === 'main' ? root : null,
+    querySelectorAll(selector) {
+      if (selector === '[data-message-author-role="assistant"]') return [message];
+      if (selector === '[data-turn="assistant"]') return [wrapper];
+      if (selector === 'button,[role="button"]') return [];
+      return [];
+    }
+  };
+
+  const snapshot = collectSnapshot(documentObject, windowObject, 1);
+
+  assert.equal(snapshot.assistantCount, 1);
+});
