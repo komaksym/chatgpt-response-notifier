@@ -19,6 +19,7 @@ function thinkingTurn(label = 'Thinking…') {
   return {
     innerText: label,
     textContent: label,
+    getAttribute: (name) => name === 'data-turn' ? 'assistant' : null,
     querySelectorAll: () => []
   };
 }
