@@ -184,7 +184,7 @@
       if (message?.type !== 'CHATGPT_NOTIFIER_PING') return false;
       sendResponse({
         ok: true,
-        version: '0.8.0',
+        version: '0.8.1',
         url: windowObject.location.href,
         title: documentObject.title || 'ChatGPT',
         state: detector.getState(),
@@ -244,7 +244,7 @@
 
     function getDebug() {
       return {
-        version: '0.8.0',
+        version: '0.8.1',
         url: windowObject.location.href,
         title: documentObject.title || 'ChatGPT',
         state: detector.getState(),
