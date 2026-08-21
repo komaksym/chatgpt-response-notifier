@@ -120,7 +120,7 @@
       const stableLongEnough = strongIdleSignal
         ? idleFor >= stableMs
         : !stopVisible && idleFor >= fallbackStableMs;
-      const completionSignature = hasAssistantSignal ? assistantSignature : conversationSignature;
+      const completionSignature = hasAssistantSignal ? assistantSignature : '';
 
       if (
         generating &&
