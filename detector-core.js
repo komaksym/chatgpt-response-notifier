@@ -57,6 +57,7 @@
         lastUserCount = userCount;
         lastAssistantSignature = assistantSignature;
         lastConversationSignature = conversationSignature;
+        lastCompletedSignature = assistantSignature || null;
         lastActionFingerprint = actionFingerprint;
         lastSendVisible = sendVisible;
         lastStopVisible = stopVisible;
