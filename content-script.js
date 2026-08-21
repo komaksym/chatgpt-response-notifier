@@ -22,9 +22,20 @@
     typeof document !== 'undefined' &&
     typeof window !== 'undefined' &&
     typeof chrome !== 'undefined' &&
-    chrome.runtime &&
-    !root.__chatgptNotifierMonitor
+    chrome.runtime
   ) {
+    const existingMonitor = root.__chatgptNotifierMonitor;
+    if (existingMonitor && existingMonitor.version !== api.version) {
+      try {
+        existingMonitor.stop?.();
+      } catch (error) {
+        console.warn('Could not stop the stale ChatGPT notifier monitor:', error);
+      }
+      root.__chatgptNotifierMonitor = null;
+    }
+
+    if (root.__chatgptNotifierMonitor) return;
+
     root.__chatgptNotifierMonitor = api.createMonitor({
       documentObject: document,
       windowObject: window,
@@ -34,6 +45,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
+  const CONTENT_SCRIPT_VERSION = '0.8.2';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -184,7 +196,7 @@
       if (message?.type !== 'CHATGPT_NOTIFIER_PING') return false;
       sendResponse({
         ok: true,
-        version: '0.8.1',
+        version: CONTENT_SCRIPT_VERSION,
         url: windowObject.location.href,
         title: documentObject.title || 'ChatGPT',
         state: detector.getState(),
@@ -244,7 +256,7 @@
 
     function getDebug() {
       return {
-        version: '0.8.1',
+        version: CONTENT_SCRIPT_VERSION,
         url: windowObject.location.href,
         title: documentObject.title || 'ChatGPT',
         state: detector.getState(),
@@ -255,8 +267,16 @@
       };
     }
 
-    return { start, stop, scan, scheduleScan, markSubmission, getDebug };
+    return {
+      version: CONTENT_SCRIPT_VERSION,
+      start,
+      stop,
+      scan,
+      scheduleScan,
+      markSubmission,
+      getDebug
+    };
   }
 
-  return { createMonitor };
+  return { createMonitor, version: CONTENT_SCRIPT_VERSION };
 });
