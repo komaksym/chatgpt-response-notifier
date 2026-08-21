@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/thinking-premature-notification
+  pull_request:
+    branches:
+      - main
 
 jobs:
   test:
