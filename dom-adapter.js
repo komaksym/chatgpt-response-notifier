@@ -133,7 +133,14 @@
         '[data-message-content], .markdown, .whitespace-pre-wrap, [class~="prose"]'
       ) || []
     );
-    return longestNormalizedText(contentNodes) || longestNormalizedText([element]);
+    const contentText = longestNormalizedText(contentNodes);
+    if (contentText) return contentText;
+
+    // Current ChatGPT uses the outer data-turn wrapper for thinking/progress labels.
+    // Those labels are not assistant answer content and must never complete a response.
+    if (element.getAttribute?.('data-turn') === 'assistant') return '';
+
+    return longestNormalizedText([element]);
   }
 
   function preview(value, maxLength = 220) {
@@ -185,7 +192,7 @@
       sendVisible,
       assistantCount: assistantNodes.length,
       userCount: userNodes.length,
-      lastAssistantSignature: assistantNodes.length ? hashText(fullAssistantText) : '',
+      lastAssistantSignature: fullAssistantText ? hashText(fullAssistantText) : '',
       lastAssistantText,
       conversationSignature: hashText(boundedConversationText),
       conversationTail: tail(fullConversationText),
