@@ -95,7 +95,8 @@ test('still notifies after an explicit local submission completes', () => {
       assistantCount: 1,
       assistantSignature: 'new-assistant',
       assistantText: 'Fresh response.',
-      conversationSignature: 'new-complete'
+      conversationSignature: 'new-complete',
+      completionReady: true
     })),
     [{ type: 'response_complete', message: 'Fresh response.' }]
   );
@@ -136,7 +137,8 @@ test('infers a new submission when a user message is appended to an established 
       assistantCount: 2,
       assistantSignature: 'new-assistant',
       assistantText: 'Fresh response.',
-      conversationSignature: 'new-complete'
+      conversationSignature: 'new-complete',
+      completionReady: true
     })),
     [{ type: 'response_complete', message: 'Fresh response.' }]
   );
