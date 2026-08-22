@@ -141,3 +141,25 @@ test('counts a current ChatGPT turn once when it contains a legacy message node'
 
   assert.equal(snapshot.assistantCount, 1);
 });
+
+test('marks a response complete only when the final assistant turn has its copy action', () => {
+  const content = {
+    innerText: 'Final assistant response.',
+    textContent: 'Final assistant response.'
+  };
+  const copyButton = { disabled: false };
+  const assistant = {
+    innerText: 'Final assistant response.',
+    textContent: 'Final assistant response.',
+    querySelector(selector) {
+      return selector === 'button[data-testid="copy-turn-action-button"]' ? copyButton : null;
+    },
+    querySelectorAll(selector) {
+      return selector.includes('.markdown') ? [content] : [];
+    }
+  };
+
+  const snapshot = collectSnapshot(fakeDocument(assistant), windowObject, 1);
+
+  assert.equal(snapshot.completionReady, true);
+});
