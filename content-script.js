@@ -45,7 +45,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.2';
+  const CONTENT_SCRIPT_VERSION = '0.8.3';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -247,11 +247,15 @@
       immediateTimer = null;
       settleTimer = null;
       heartbeatTimer = null;
-      chromeObject.runtime.onMessage.removeListener?.(runtimeMessageListener);
       resolvedTabMarker.stop();
       documentObject.removeEventListener?.('click', clickListener, true);
       documentObject.removeEventListener?.('keydown', keydownListener, true);
       documentObject.removeEventListener?.('submit', submitListener, true);
+      try {
+        chromeObject.runtime.onMessage.removeListener?.(runtimeMessageListener);
+      } catch (error) {
+        console.warn('Could not remove stale ChatGPT notifier runtime listener:', error);
+      }
     }
 
     function getDebug() {
