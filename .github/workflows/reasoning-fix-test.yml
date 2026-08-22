@@ -13,4 +13,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test tests/detector-core.test.js
+      - name: Syntax checks
+        run: |
+          node --check detector-core.js
+          node --check dom-adapter.js
+          node --check page-utils.js
+          node --check content-script.js
+          node --check service-worker/part3.js
+          node --check service-worker/part4.js
+      - name: Tests
+        run: node --test tests/*.test.js
