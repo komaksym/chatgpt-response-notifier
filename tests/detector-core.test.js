@@ -10,7 +10,8 @@ function snapshot({
   assistantText = '',
   conversationSignature = '',
   sendVisible = true,
-  stopVisible = false
+  stopVisible = false,
+  completionReady = false
 }) {
   return {
     now,
@@ -22,6 +23,7 @@ function snapshot({
     conversationTail: assistantText,
     sendVisible,
     stopVisible,
+    completionReady,
     actionFingerprint: null,
     actionLabel: null
   };
@@ -137,5 +139,85 @@ test('infers a new submission when a user message is appended to an established 
       conversationSignature: 'new-complete'
     })),
     [{ type: 'response_complete', message: 'Fresh response.' }]
+  );
+});
+
+test('does not complete on stable reasoning text before the final response action appears', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    conversationSignature: 'old-complete',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 2,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    conversationSignature: 'new-user',
+    sendVisible: false,
+    stopVisible: true
+  }));
+
+  detector.scan(snapshot({
+    now: 40,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'reasoning-sentence',
+    assistantText: 'I need to inspect the edge cases first.',
+    conversationSignature: 'reasoning-sentence-visible',
+    sendVisible: false,
+    stopVisible: false,
+    completionReady: false
+  }));
+
+  assert.deepEqual(
+    detector.scan(snapshot({
+      now: 400,
+      userCount: 2,
+      assistantCount: 2,
+      assistantSignature: 'reasoning-sentence',
+      assistantText: 'I need to inspect the edge cases first.',
+      conversationSignature: 'reasoning-sentence-visible',
+      sendVisible: false,
+      stopVisible: false,
+      completionReady: false
+    })),
+    []
+  );
+
+  detector.scan(snapshot({
+    now: 500,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'final-answer',
+    assistantText: 'Here is the final answer.',
+    conversationSignature: 'final-answer-visible',
+    sendVisible: true,
+    stopVisible: false,
+    completionReady: false
+  }));
+
+  assert.deepEqual(
+    detector.scan(snapshot({
+      now: 650,
+      userCount: 2,
+      assistantCount: 2,
+      assistantSignature: 'final-answer',
+      assistantText: 'Here is the final answer.',
+      conversationSignature: 'final-answer-visible',
+      sendVisible: true,
+      stopVisible: false,
+      completionReady: true
+    })),
+    [{ type: 'response_complete', message: 'Here is the final answer.' }]
   );
 });
