@@ -1,0 +1,28 @@
+name: Branch verification
+
+on:
+  push:
+    branches:
+      - fix/stale-monitor-invalidated-runtime
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax checks
+        run: |
+          node --check detector-core.js
+          node --check dom-adapter.js
+          node --check page-utils.js
+          node --check content-script.js
+          node --check service-worker/part3.js
+          node --check service-worker/part4.js
+      - name: Tests
+        run: node --test tests/*.test.js
