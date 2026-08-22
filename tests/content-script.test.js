@@ -75,7 +75,7 @@ test('replaces a stale page monitor after the extension is reloaded', () => {
   });
 
   assert.equal(stopped, true);
-  assert.equal(context.__chatgptNotifierMonitor.version, '0.8.2');
+  assert.equal(context.__chatgptNotifierMonitor.version, '0.8.3');
   assert.equal(runtimeListenerCount, 1);
   context.__chatgptNotifierMonitor.stop();
 });
