@@ -3,11 +3,15 @@ const assert = require('node:assert/strict');
 const { collectSnapshot } = require('../dom-adapter.js');
 const { createDetector } = require('../detector-core.js');
 
-function turn(text) {
+function turn(text, completed = false) {
   const content = { innerText: text, textContent: text };
   return {
     innerText: text,
     textContent: text,
+    querySelector: (selector) =>
+      completed && selector === 'button[data-testid="copy-turn-action-button"]'
+        ? { disabled: false }
+        : null,
     querySelectorAll: (selector) =>
       selector.includes('.markdown') || selector.includes('.whitespace-pre-wrap')
         ? [content]
@@ -40,7 +44,7 @@ test('detects a completed response through current data-turn markup', () => {
   root.innerText = root.textContent = 'Old prompt. Old response. New prompt.';
   detector.scan(collectSnapshot(documentObject, windowObject, 1000));
 
-  assistants.push(turn('Fresh response.'));
+  assistants.push(turn('Fresh response.', true));
   root.innerText = root.textContent = 'Old prompt. Old response. New prompt. Fresh response.';
   detector.scan(collectSnapshot(documentObject, windowObject, 1100));
 
