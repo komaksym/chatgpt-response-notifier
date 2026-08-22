@@ -50,6 +50,7 @@
       const actionFingerprint = snapshot.actionFingerprint || null;
       const sendVisible = Boolean(snapshot.sendVisible);
       const stopVisible = Boolean(snapshot.stopVisible);
+      const completionReady = Boolean(snapshot.completionReady);
 
       if (!initialized) {
         initialized = true;
@@ -126,6 +127,7 @@
         generating &&
         awaitingResponse &&
         activityObserved &&
+        completionReady &&
         stableLongEnough &&
         completionSignature &&
         completionSignature !== lastCompletedSignature

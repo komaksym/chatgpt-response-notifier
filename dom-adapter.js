@@ -143,6 +143,19 @@
     return longestNormalizedText([element]);
   }
 
+  function finalResponseAction(element) {
+    if (!element) return null;
+    const selector = 'button[data-testid="copy-turn-action-button"]';
+    const direct = element.querySelector?.(selector);
+    if (direct) return direct;
+
+    const turn = element.closest?.(
+      '[data-turn="assistant"], [data-testid^="conversation-turn-"]'
+    );
+    if (!turn || turn === element) return null;
+    return turn.querySelector?.(selector) || null;
+  }
+
   function preview(value, maxLength = 220) {
     const text = normalizeText(value);
     if (text.length <= maxLength) return text;
@@ -167,6 +180,12 @@
     const lastAssistant = assistantNodes.at(-1);
     const fullAssistantText = assistantText(lastAssistant);
     const lastAssistantText = preview(fullAssistantText);
+    const completionAction = finalResponseAction(lastAssistant);
+    const completionReady = Boolean(
+      completionAction &&
+      completionAction.disabled !== true &&
+      completionAction.getAttribute?.('aria-disabled') !== 'true'
+    );
 
     const visibleButtons = buttons.filter((button) => isVisible(button, windowObject));
     const stopVisible = visibleButtons.some(isStopControl);
@@ -190,6 +209,7 @@
       now,
       stopVisible,
       sendVisible,
+      completionReady,
       assistantCount: assistantNodes.length,
       userCount: userNodes.length,
       lastAssistantSignature: fullAssistantText ? hashText(fullAssistantText) : '',

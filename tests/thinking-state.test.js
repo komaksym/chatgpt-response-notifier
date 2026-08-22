@@ -3,11 +3,15 @@ const assert = require('node:assert/strict');
 const { collectSnapshot } = require('../dom-adapter.js');
 const { createDetector } = require('../detector-core.js');
 
-function messageTurn(text) {
+function messageTurn(text, completed = false) {
   const content = { innerText: text, textContent: text };
   return {
     innerText: text,
     textContent: text,
+    querySelector: (selector) =>
+      completed && selector === 'button[data-testid="copy-turn-action-button"]'
+        ? { disabled: false }
+        : null,
     querySelectorAll: (selector) =>
       selector.includes('.markdown') || selector.includes('[data-message-content]')
         ? [content]
@@ -20,6 +24,7 @@ function thinkingTurn(label = 'Thinking…') {
     innerText: label,
     textContent: label,
     getAttribute: (name) => name === 'data-turn' ? 'assistant' : null,
+    querySelector: () => null,
     querySelectorAll: () => []
   };
 }
@@ -57,10 +62,9 @@ test('does not complete a response while the new assistant turn is only thinking
   root.innerText = root.textContent = 'Old prompt. Old response. New prompt. Thinking…';
   assert.deepEqual(detector.scan(collectSnapshot(documentObject, windowObject, 1100)), []);
 
-  // Even well beyond both stabilization windows, a thinking-only turn is not a response.
   assert.deepEqual(detector.scan(collectSnapshot(documentObject, windowObject, 2000)), []);
 
-  assistants[1] = messageTurn('Fresh response.');
+  assistants[1] = messageTurn('Fresh response.', true);
   root.innerText = root.textContent = 'Old prompt. Old response. New prompt. Fresh response.';
   assert.deepEqual(detector.scan(collectSnapshot(documentObject, windowObject, 2100)), []);
 

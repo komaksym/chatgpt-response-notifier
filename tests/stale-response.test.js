@@ -10,7 +10,8 @@ function snapshot({
   assistantText = 'Yesterday response.',
   conversationSignature = 'old-complete',
   sendVisible = true,
-  stopVisible = false
+  stopVisible = false,
+  completionReady = false
 }) {
   return {
     now,
@@ -22,6 +23,7 @@ function snapshot({
     conversationTail: assistantText,
     sendVisible,
     stopVisible,
+    completionReady,
     actionFingerprint: null,
     actionLabel: null
   };
@@ -70,7 +72,8 @@ test('does not report the pre-submission assistant response as the new completio
       assistantCount: 2,
       assistantSignature: 'new-assistant',
       assistantText: 'Today response.',
-      conversationSignature: 'new-complete'
+      conversationSignature: 'new-complete',
+      completionReady: true
     })),
     [{ type: 'response_complete', message: 'Today response.' }]
   );
