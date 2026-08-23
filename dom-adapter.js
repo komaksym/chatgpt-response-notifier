@@ -166,12 +166,6 @@
     return `${slice.slice(0, cutoff).trimEnd()}…`;
   }
 
-  function tail(value, maxLength = 220) {
-    const text = normalizeText(value);
-    if (text.length <= maxLength) return text;
-    return `…${text.slice(-(maxLength - 1)).trimStart()}`;
-  }
-
   function collectSnapshot(documentObject, windowObject, now = Date.now()) {
     const assistantNodes = turnNodes(documentObject, 'assistant');
     const userNodes = turnNodes(documentObject, 'user');
@@ -201,10 +195,6 @@
       ? actionLabels.map((label) => label.toLowerCase()).sort().join('|')
       : null;
 
-    const root = conversationRoot(documentObject);
-    const fullConversationText = normalizeText(root?.innerText || root?.textContent || '');
-    const boundedConversationText = fullConversationText.slice(-24000);
-
     return {
       now,
       stopVisible,
@@ -214,8 +204,6 @@
       userCount: userNodes.length,
       lastAssistantSignature: fullAssistantText ? hashText(fullAssistantText) : '',
       lastAssistantText,
-      conversationSignature: hashText(boundedConversationText),
-      conversationTail: tail(fullConversationText),
       actionFingerprint,
       actionLabel: actionFingerprint ? summarizeActionLabels(actionLabels) : null
     };
