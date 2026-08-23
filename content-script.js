@@ -45,7 +45,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.4';
+  const CONTENT_SCRIPT_VERSION = '0.8.5';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -116,6 +116,18 @@
       });
     }
 
+    function syncHeartbeat() {
+      const state = detector.getState();
+      const pending = state.awaitingResponse || state.generating;
+
+      if (pending && heartbeatTimer === null) {
+        heartbeatTimer = setIntervalFn(() => scan('heartbeat'), 2000);
+      } else if (!pending && heartbeatTimer !== null) {
+        clearIntervalFn(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+
     function scan(reason = 'manual') {
       const url = windowObject.location.href;
       if (url !== currentUrl) {
@@ -129,6 +141,7 @@
       lastSnapshot = snapshot;
       lastScanReason = reason;
       events.forEach(sendEvent);
+      syncHeartbeat();
       return events;
     }
 
@@ -152,6 +165,7 @@
       if (timestamp - lastSubmissionAt < 600) return;
       lastSubmissionAt = timestamp;
       detector.markUserSubmitted(timestamp);
+      syncHeartbeat();
       lastScanReason = `submission:${reason}`;
       scheduleScan(`submission:${reason}`);
     }
@@ -232,8 +246,6 @@
           'data-testid'
         ]
       });
-
-      heartbeatTimer = setIntervalFn(() => scan('heartbeat'), 2000);
     }
 
     function stop() {
