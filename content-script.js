@@ -45,7 +45,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.5';
+  const CONTENT_SCRIPT_VERSION = '0.8.6';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -90,6 +90,16 @@
       lastDispatch = null;
     }
 
+    function failDispatch(event, error) {
+      lastDispatch = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error || 'Extension runtime unavailable.'),
+        event,
+        timestamp: now()
+      };
+      stop();
+    }
+
     function sendEvent(event) {
       const payload = {
         type: 'CHATGPT_EVENT',
@@ -99,24 +109,35 @@
           url: windowObject.location.href
         }
       };
+      const runtime = chromeObject?.runtime;
 
-      chromeObject.runtime.sendMessage(payload, (response) => {
-        const error = chromeObject.runtime.lastError;
-        if (error) {
-          lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
-          return;
-        }
-        lastDispatch = {
-          ok: Boolean(response?.ok),
-          skipped: response?.skipped || null,
-          error: response?.error || null,
-          event,
-          timestamp: now()
-        };
-      });
+      if (!runtime?.sendMessage) {
+        failDispatch(event, 'Extension runtime unavailable.');
+        return;
+      }
+
+      try {
+        runtime.sendMessage(payload, (response) => {
+          const error = runtime.lastError;
+          if (error) {
+            lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
+            return;
+          }
+          lastDispatch = {
+            ok: Boolean(response?.ok),
+            skipped: response?.skipped || null,
+            error: response?.error || null,
+            event,
+            timestamp: now()
+          };
+        });
+      } catch (error) {
+        failDispatch(event, error);
+      }
     }
 
     function syncHeartbeat() {
+      if (!started) return;
       const state = detector.getState();
       const pending = state.awaitingResponse || state.generating;
 
@@ -231,6 +252,7 @@
       documentObject.addEventListener?.('keydown', keydownListener, true);
       documentObject.addEventListener?.('submit', submitListener, true);
       scan('initial');
+      if (!started) return;
 
       observer = new MutationObserverClass(() => scheduleScan('mutation'));
       observer.observe(documentObject.documentElement || documentObject.body, {
@@ -264,7 +286,7 @@
       documentObject.removeEventListener?.('keydown', keydownListener, true);
       documentObject.removeEventListener?.('submit', submitListener, true);
       try {
-        chromeObject.runtime.onMessage.removeListener?.(runtimeMessageListener);
+        chromeObject?.runtime?.onMessage?.removeListener?.(runtimeMessageListener);
       } catch (error) {
         console.warn('Could not remove stale ChatGPT notifier runtime listener:', error);
       }
