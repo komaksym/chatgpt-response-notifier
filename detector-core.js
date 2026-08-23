@@ -14,7 +14,6 @@
     let lastAssistantCount = 0;
     let lastUserCount = 0;
     let lastAssistantSignature = '';
-    let lastConversationSignature = '';
     let lastContentChangeAt = null;
     let lastSubmissionAt = null;
     let lastActionFingerprint = null;
@@ -45,8 +44,6 @@
       const userCount = snapshot.userCount || 0;
       const assistantSignature = snapshot.lastAssistantSignature || '';
       const assistantText = snapshot.lastAssistantText || '';
-      const conversationSignature = snapshot.conversationSignature || '';
-      const conversationTail = snapshot.conversationTail || '';
       const actionFingerprint = snapshot.actionFingerprint || null;
       const sendVisible = Boolean(snapshot.sendVisible);
       const stopVisible = Boolean(snapshot.stopVisible);
@@ -57,7 +54,6 @@
         lastAssistantCount = assistantCount;
         lastUserCount = userCount;
         lastAssistantSignature = assistantSignature;
-        lastConversationSignature = conversationSignature;
         lastCompletedSignature = assistantSignature || null;
         lastActionFingerprint = actionFingerprint;
         lastSendVisible = sendVisible;
@@ -85,8 +81,6 @@
       const userAdded = userCount > lastUserCount;
       const assistantAdded = assistantCount > lastAssistantCount;
       const assistantChanged = Boolean(assistantSignature) && assistantSignature !== lastAssistantSignature;
-      const conversationChanged =
-        Boolean(conversationSignature) && conversationSignature !== lastConversationSignature;
       const hasAssistantSignal = assistantCount > 0 && Boolean(assistantSignature);
       const hadEstablishedAssistant = lastAssistantCount > 0 && Boolean(lastAssistantSignature);
 
@@ -94,7 +88,6 @@
         markUserSubmitted(now);
       }
 
-      const firstScanAfterSubmission = submissionBaselinePending;
       submissionBaselinePending = false;
 
       const strongStartSignal =
@@ -107,12 +100,6 @@
         if (stopVisible && !lastStopVisible) awaitingResponse = true;
         generating = true;
         activityObserved = true;
-        lastContentChangeAt = now;
-      } else if (awaitingResponse && conversationChanged && !firstScanAfterSubmission) {
-        generating = true;
-        activityObserved = true;
-        lastContentChangeAt = now;
-      } else if (generating && conversationChanged) {
         lastContentChangeAt = now;
       }
 
@@ -134,7 +121,7 @@
       ) {
         events.push({
           type: 'response_complete',
-          message: assistantText || conversationTail || 'Your ChatGPT response is ready.'
+          message: assistantText || 'Your ChatGPT response is ready.'
         });
         generating = false;
         awaitingResponse = false;
@@ -146,7 +133,6 @@
       lastAssistantCount = assistantCount;
       lastUserCount = userCount;
       lastAssistantSignature = assistantSignature;
-      lastConversationSignature = conversationSignature;
       lastSendVisible = sendVisible;
       lastStopVisible = stopVisible;
 
@@ -163,7 +149,6 @@
         lastAssistantCount,
         lastUserCount,
         lastAssistantSignature,
-        lastConversationSignature,
         lastContentChangeAt,
         lastSubmissionAt,
         lastActionFingerprint,
