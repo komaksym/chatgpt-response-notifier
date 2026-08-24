@@ -24,15 +24,7 @@
     typeof chrome !== 'undefined' &&
     chrome.runtime
   ) {
-    const existingMonitor = root.__chatgptNotifierMonitor;
-    if (existingMonitor) {
-      try {
-        existingMonitor.stop?.();
-      } catch (error) {
-        console.warn('Could not stop the stale ChatGPT notifier monitor:', error);
-      }
-      root.__chatgptNotifierMonitor = null;
-    }
+    if (root.__chatgptNotifierMonitor) return;
 
     root.__chatgptNotifierMonitor = api.createMonitor({
       documentObject: document,
@@ -43,7 +35,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.7';
+  const CONTENT_SCRIPT_VERSION = '0.8.8';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -119,6 +111,9 @@
           const error = runtime.lastError;
           if (error) {
             lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
+            if (/context invalidated|receiving end does not exist|could not establish connection/i.test(error.message || '')) {
+              stop();
+            }
             return;
           }
           lastDispatch = {
