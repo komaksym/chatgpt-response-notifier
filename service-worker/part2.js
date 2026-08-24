@@ -28,15 +28,55 @@ function executeContentScripts(tabId) {
   });
 }
 
+async function probeMonitor(tabId) {
+  try {
+    const response = await tabsSendMessage(tabId, { type: 'CHATGPT_NOTIFIER_PING' });
+    return response?.ok
+      ? { ok: true, response }
+      : { ok: false, error: response?.error || 'No monitor response.' };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function ensureMonitor(tabId) {
+  const existing = await probeMonitor(tabId);
+  if (existing.ok) {
+    return { tabId, ok: true, connected: true, injected: false, response: existing.response };
+  }
+
+  const injection = await executeContentScripts(tabId);
+  if (!injection.ok) {
+    return { tabId, ok: false, connected: false, injected: false, error: injection.error };
+  }
+
+  const verified = await probeMonitor(tabId);
+  if (!verified.ok) {
+    return {
+      tabId,
+      ok: false,
+      connected: false,
+      injected: true,
+      error: `Monitor injection did not establish a connection: ${verified.error}`
+    };
+  }
+
+  return { tabId, ok: true, connected: true, injected: true, response: verified.response };
+}
+
 async function ensureMonitors() {
   const tabs = await tabsQuery({ url: CHATGPT_URLS });
   const validTabs = tabs.filter((tab) => Number.isInteger(tab.id));
-  const results = await Promise.all(validTabs.map((tab) => executeContentScripts(tab.id)));
+  const results = await Promise.all(validTabs.map((tab) => ensureMonitor(tab.id)));
+  const failures = results.filter((result) => !result.ok);
   return {
-    ok: true,
+    ok: failures.length === 0,
     totalTabs: validTabs.length,
-    injectedTabs: results.filter((result) => result.ok).length,
-    failures: results.filter((result) => !result.ok)
+    connectedTabs: results.filter((result) => result.connected).length,
+    injectedTabs: results.filter((result) => result.injected && result.connected).length,
+    reusedTabs: results.filter((result) => !result.injected && result.connected).length,
+    failures,
+    error: failures.length ? `${failures.length} ChatGPT tab monitor${failures.length === 1 ? '' : 's'} failed to connect.` : null
   };
 }
 
@@ -98,4 +138,3 @@ async function clearTabMarker(tabId) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
-
