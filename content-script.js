@@ -24,7 +24,15 @@
     typeof chrome !== 'undefined' &&
     chrome.runtime
   ) {
-    if (root.__chatgptNotifierMonitor) return;
+    const existingMonitor = root.__chatgptNotifierMonitor;
+    if (existingMonitor) {
+      try {
+        existingMonitor.stop?.();
+      } catch (error) {
+        console.warn('Could not stop the stale ChatGPT notifier monitor:', error);
+      }
+      root.__chatgptNotifierMonitor = null;
+    }
 
     root.__chatgptNotifierMonitor = api.createMonitor({
       documentObject: document,
