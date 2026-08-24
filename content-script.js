@@ -25,7 +25,7 @@
     chrome.runtime
   ) {
     const existingMonitor = root.__chatgptNotifierMonitor;
-    if (existingMonitor && existingMonitor.version !== api.version) {
+    if (existingMonitor) {
       try {
         existingMonitor.stop?.();
       } catch (error) {
@@ -33,8 +33,6 @@
       }
       root.__chatgptNotifierMonitor = null;
     }
-
-    if (root.__chatgptNotifierMonitor) return;
 
     root.__chatgptNotifierMonitor = api.createMonitor({
       documentObject: document,
