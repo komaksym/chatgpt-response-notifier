@@ -32,4 +32,4 @@ Open the extension popup to enable or disable desktop alerts, tab highlighting, 
 
 ## Version
 
-Current manifest version: **0.8.6**.
+Current manifest version: **0.8.7**.
