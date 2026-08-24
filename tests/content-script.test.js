@@ -68,7 +68,7 @@ function loadContentScriptWithExistingMonitor(existingMonitor) {
   return { context, runtimeListenerCount: runtimeListeners.length };
 }
 
-test('keeps an existing monitor when content scripts are reinjected in the same context', () => {
+test('replaces an existing monitor when recovery scripts are injected', () => {
   let stopped = false;
   const existingMonitor = {
     version: CONTENT_SCRIPT_VERSION,
@@ -76,9 +76,11 @@ test('keeps an existing monitor when content scripts are reinjected in the same 
   };
   const { context, runtimeListenerCount } = loadContentScriptWithExistingMonitor(existingMonitor);
 
-  assert.equal(stopped, false);
-  assert.equal(context.__chatgptNotifierMonitor, existingMonitor);
-  assert.equal(runtimeListenerCount, 0);
+  assert.equal(stopped, true);
+  assert.notEqual(context.__chatgptNotifierMonitor, existingMonitor);
+  assert.equal(context.__chatgptNotifierMonitor.version, CONTENT_SCRIPT_VERSION);
+  assert.equal(runtimeListenerCount, 1);
+  context.__chatgptNotifierMonitor.stop();
 });
 
 test('fully detaches a monitor when its extension runtime is already invalidated', () => {
