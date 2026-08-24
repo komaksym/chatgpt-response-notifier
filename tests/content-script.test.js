@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { createMonitor } = require('../content-script.js');
+const { createMonitor, version: CONTENT_SCRIPT_VERSION } = require('../content-script.js');
 
 function loadContentScriptWithExistingMonitor(existingMonitor) {
   const runtimeListeners = [];
@@ -68,14 +68,17 @@ function loadContentScriptWithExistingMonitor(existingMonitor) {
   return { context, runtimeListenerCount: runtimeListeners.length };
 }
 
-test('replaces a stale page monitor after the extension is reloaded', () => {
+test('replaces an existing same-version monitor when content scripts are reinjected', () => {
   let stopped = false;
-  const { context, runtimeListenerCount } = loadContentScriptWithExistingMonitor({
+  const existingMonitor = {
+    version: CONTENT_SCRIPT_VERSION,
     stop() { stopped = true; }
-  });
+  };
+  const { context, runtimeListenerCount } = loadContentScriptWithExistingMonitor(existingMonitor);
 
   assert.equal(stopped, true);
-  assert.equal(context.__chatgptNotifierMonitor.version, '0.8.6');
+  assert.notEqual(context.__chatgptNotifierMonitor, existingMonitor);
+  assert.equal(context.__chatgptNotifierMonitor.version, CONTENT_SCRIPT_VERSION);
   assert.equal(runtimeListenerCount, 1);
   context.__chatgptNotifierMonitor.stop();
 });
