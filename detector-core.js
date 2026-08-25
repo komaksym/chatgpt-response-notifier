@@ -11,7 +11,7 @@
     let awaitingResponse = false;
     let activityObserved = false;
     let submissionBaselinePending = false;
-    let stopObservedSinceSubmission = false;
+    let assistantBusyObservedSinceSubmission = false;
     let lastAssistantCount = 0;
     let lastUserCount = 0;
     let lastAssistantSignature = '';
@@ -21,6 +21,7 @@
     let lastCompletedSignature = null;
     let lastSendVisible = false;
     let lastStopVisible = false;
+    let lastAssistantBusy = false;
 
     function actionEvent(snapshot) {
       return {
@@ -34,7 +35,7 @@
       generating = false;
       activityObserved = false;
       submissionBaselinePending = true;
-      stopObservedSinceSubmission = false;
+      assistantBusyObservedSinceSubmission = false;
       lastContentChangeAt = null;
       lastSubmissionAt = Number.isFinite(timestamp) ? timestamp : Date.now();
     }
@@ -50,6 +51,7 @@
       const sendVisible = Boolean(snapshot.sendVisible);
       const stopVisible = Boolean(snapshot.stopVisible);
       const completionReady = Boolean(snapshot.completionReady);
+      const assistantBusy = Boolean(snapshot.assistantBusy);
 
       if (!initialized) {
         initialized = true;
@@ -60,12 +62,13 @@
         lastActionFingerprint = actionFingerprint;
         lastSendVisible = sendVisible;
         lastStopVisible = stopVisible;
+        lastAssistantBusy = assistantBusy;
 
-        if (stopVisible || (awaitingResponse && !sendVisible)) {
+        if (assistantBusy || stopVisible || (awaitingResponse && !sendVisible)) {
           awaitingResponse = true;
           generating = true;
           activityObserved = true;
-          stopObservedSinceSubmission = stopVisible;
+          assistantBusyObservedSinceSubmission = assistantBusy;
           lastContentChangeAt = now;
         }
 
@@ -92,11 +95,12 @@
       }
 
       submissionBaselinePending = false;
-      if (awaitingResponse && stopVisible) {
-        stopObservedSinceSubmission = true;
+      if (awaitingResponse && assistantBusy) {
+        assistantBusyObservedSinceSubmission = true;
       }
 
       const strongStartSignal =
+        (assistantBusy && !lastAssistantBusy) ||
         (stopVisible && !lastStopVisible) ||
         (awaitingResponse && !sendVisible && lastSendVisible) ||
         (assistantAdded && awaitingResponse) ||
@@ -111,15 +115,14 @@
 
       const idleFor = lastContentChangeAt === null ? 0 : now - lastContentChangeAt;
       const strongIdleSignal = !stopVisible && (sendVisible || hasAssistantSignal);
-      const stableLongEnough = strongIdleSignal
+      const busyCompletionReady = assistantBusyObservedSinceSubmission && !assistantBusy;
+      const completionConfirmed = !assistantBusy && (completionReady || busyCompletionReady);
+      const stableLongEnough = completionConfirmed
         ? idleFor >= stableMs
-        : !stopVisible && idleFor >= fallbackStableMs;
+        : strongIdleSignal
+          ? idleFor >= stableMs
+          : !stopVisible && idleFor >= fallbackStableMs;
       const completionSignature = hasAssistantSignal ? assistantSignature : '';
-      const lifecycleCompletionReady =
-        stopObservedSinceSubmission &&
-        !stopVisible &&
-        sendVisible;
-      const completionConfirmed = completionReady || lifecycleCompletionReady;
 
       if (
         generating &&
@@ -137,7 +140,7 @@
         generating = false;
         awaitingResponse = false;
         activityObserved = false;
-        stopObservedSinceSubmission = false;
+        assistantBusyObservedSinceSubmission = false;
         lastCompletedSignature = completionSignature;
         lastContentChangeAt = null;
       }
@@ -147,6 +150,7 @@
       lastAssistantSignature = assistantSignature;
       lastSendVisible = sendVisible;
       lastStopVisible = stopVisible;
+      lastAssistantBusy = assistantBusy;
 
       return events;
     }
@@ -158,7 +162,7 @@
         awaitingResponse,
         activityObserved,
         submissionBaselinePending,
-        stopObservedSinceSubmission,
+        assistantBusyObservedSinceSubmission,
         lastAssistantCount,
         lastUserCount,
         lastAssistantSignature,
@@ -166,7 +170,8 @@
         lastSubmissionAt,
         lastActionFingerprint,
         lastSendVisible,
-        lastStopVisible
+        lastStopVisible,
+        lastAssistantBusy
       };
     }
 
