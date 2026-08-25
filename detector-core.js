@@ -12,6 +12,7 @@
     let activityObserved = false;
     let submissionBaselinePending = false;
     let assistantBusyObservedSinceSubmission = false;
+    let compatibilityIssue = null;
     let lastAssistantCount = 0;
     let lastUserCount = 0;
     let lastAssistantSignature = '';
@@ -36,6 +37,7 @@
       activityObserved = false;
       submissionBaselinePending = true;
       assistantBusyObservedSinceSubmission = false;
+      compatibilityIssue = null;
       lastContentChangeAt = null;
       lastSubmissionAt = Number.isFinite(timestamp) ? timestamp : Date.now();
     }
@@ -113,6 +115,12 @@
         lastContentChangeAt = now;
       }
 
+      if (awaitingResponse && activityObserved && hasAssistantSignal) {
+        compatibilityIssue = assistantBusyObservedSinceSubmission || completionReady
+          ? null
+          : 'completion-signal-unknown';
+      }
+
       const idleFor = lastContentChangeAt === null ? 0 : now - lastContentChangeAt;
       const strongIdleSignal = !stopVisible && (sendVisible || hasAssistantSignal);
       const busyCompletionReady = assistantBusyObservedSinceSubmission && !assistantBusy;
@@ -141,6 +149,7 @@
         awaitingResponse = false;
         activityObserved = false;
         assistantBusyObservedSinceSubmission = false;
+        compatibilityIssue = null;
         lastCompletedSignature = completionSignature;
         lastContentChangeAt = null;
       }
@@ -163,6 +172,7 @@
         activityObserved,
         submissionBaselinePending,
         assistantBusyObservedSinceSubmission,
+        compatibilityIssue,
         lastAssistantCount,
         lastUserCount,
         lastAssistantSignature,
