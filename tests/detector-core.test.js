@@ -11,7 +11,8 @@ function snapshot({
   conversationSignature = '',
   sendVisible = true,
   stopVisible = false,
-  completionReady = false
+  completionReady = false,
+  assistantBusy = false
 }) {
   return {
     now,
@@ -24,6 +25,7 @@ function snapshot({
     sendVisible,
     stopVisible,
     completionReady,
+    assistantBusy,
     actionFingerprint: null,
     actionLabel: null
   };
@@ -224,7 +226,7 @@ test('does not complete on stable reasoning text before the final response actio
   );
 });
 
-test('completes in a background tab after Stop disappears even if the Copy action is not rendered', () => {
+test('completes in a background tab when assistant busy clears even if controls stay stale', () => {
   const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
 
   detector.scan(snapshot({
@@ -240,11 +242,12 @@ test('completes in a background tab after Stop disappears even if the Copy actio
   detector.scan(snapshot({
     now: 20,
     userCount: 2,
-    assistantCount: 1,
-    assistantSignature: 'old-assistant',
-    assistantText: 'Old response.',
+    assistantCount: 2,
+    assistantSignature: 'draft-answer',
+    assistantText: 'Draft response.',
     sendVisible: false,
-    stopVisible: true
+    stopVisible: true,
+    assistantBusy: true
   }));
   detector.scan(snapshot({
     now: 100,
@@ -252,8 +255,9 @@ test('completes in a background tab after Stop disappears even if the Copy actio
     assistantCount: 2,
     assistantSignature: 'final-answer',
     assistantText: 'Finished while the tab is in the background.',
-    sendVisible: true,
-    stopVisible: false,
+    sendVisible: false,
+    stopVisible: true,
+    assistantBusy: false,
     completionReady: false
   }));
 
@@ -264,8 +268,9 @@ test('completes in a background tab after Stop disappears even if the Copy actio
       assistantCount: 2,
       assistantSignature: 'final-answer',
       assistantText: 'Finished while the tab is in the background.',
-      sendVisible: true,
-      stopVisible: false,
+      sendVisible: false,
+      stopVisible: true,
+      assistantBusy: false,
       completionReady: false
     })),
     [{ type: 'response_complete', message: 'Finished while the tab is in the background.' }]

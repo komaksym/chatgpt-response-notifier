@@ -43,7 +43,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.9';
+  const CONTENT_SCRIPT_VERSION = '0.8.10';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -264,6 +264,7 @@
         attributeFilter: [
           'aria-label',
           'aria-disabled',
+          'aria-busy',
           'disabled',
           'data-message-author-role',
           'data-testid'
