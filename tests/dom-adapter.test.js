@@ -163,3 +163,53 @@ test('marks a response complete only when the final assistant turn has its copy 
 
   assert.equal(snapshot.completionReady, true);
 });
+
+test('exposes aria-busy from the active assistant node', () => {
+  const content = {
+    innerText: 'Working response.',
+    textContent: 'Working response.'
+  };
+  const assistant = {
+    innerText: 'Working response.',
+    textContent: 'Working response.',
+    getAttribute(name) {
+      return name === 'aria-busy' ? 'true' : null;
+    },
+    querySelector: () => null,
+    querySelectorAll(selector) {
+      return selector.includes('.markdown') ? [content] : [];
+    }
+  };
+
+  const snapshot = collectSnapshot(fakeDocument(assistant), windowObject, 1);
+
+  assert.equal(snapshot.assistantBusy, true);
+});
+
+test('falls back to aria-busy on the outer assistant turn', () => {
+  const content = {
+    innerText: 'Working response.',
+    textContent: 'Working response.'
+  };
+  const wrapper = {
+    getAttribute(name) {
+      return name === 'aria-busy' ? 'true' : null;
+    }
+  };
+  const assistant = {
+    innerText: 'Working response.',
+    textContent: 'Working response.',
+    getAttribute: () => null,
+    closest(selector) {
+      return selector.includes('[data-turn="assistant"]') ? wrapper : null;
+    },
+    querySelector: () => null,
+    querySelectorAll(selector) {
+      return selector.includes('.markdown') ? [content] : [];
+    }
+  };
+
+  const snapshot = collectSnapshot(fakeDocument(assistant), windowObject, 1);
+
+  assert.equal(snapshot.assistantBusy, true);
+});
