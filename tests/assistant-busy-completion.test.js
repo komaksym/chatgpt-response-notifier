@@ -117,7 +117,7 @@ test('reasoning does not complete when Stop disappears and Send returns while as
   );
 });
 
-test('DOM snapshot exposes aria-busy from the active assistant turn', () => {
+test('DOM snapshot exposes aria-busy from the active assistant node', () => {
   const content = {
     innerText: 'Working response.',
     textContent: 'Working response.'
@@ -128,6 +128,51 @@ test('DOM snapshot exposes aria-busy from the active assistant turn', () => {
     getAttribute(name) {
       if (name === 'aria-busy') return 'true';
       return null;
+    },
+    querySelector: () => null,
+    querySelectorAll(selector) {
+      return selector.includes('.markdown') ? [content] : [];
+    }
+  };
+  const root = {
+    innerText: 'Prompt Working response.',
+    textContent: 'Prompt Working response.'
+  };
+  const documentObject = {
+    body: root,
+    querySelector: (selector) => selector === 'main' ? root : null,
+    querySelectorAll(selector) {
+      if (selector === '[data-message-author-role="assistant"]') return [assistant];
+      if (selector === '[data-message-author-role="user"]') return [{}];
+      if (selector === 'button,[role="button"]') return [];
+      return [];
+    }
+  };
+  const windowObject = {
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' })
+  };
+
+  const result = collectSnapshot(documentObject, windowObject, 1);
+  assert.equal(result.assistantBusy, true);
+});
+
+test('DOM snapshot falls back to aria-busy on the outer conversation turn', () => {
+  const content = {
+    innerText: 'Working response.',
+    textContent: 'Working response.'
+  };
+  const wrapper = {
+    getAttribute(name) {
+      if (name === 'aria-busy') return 'true';
+      return null;
+    }
+  };
+  const assistant = {
+    innerText: 'Working response.',
+    textContent: 'Working response.',
+    getAttribute: () => null,
+    closest(selector) {
+      return selector.includes('[data-turn="assistant"]') ? wrapper : null;
     },
     querySelector: () => null,
     querySelectorAll(selector) {
