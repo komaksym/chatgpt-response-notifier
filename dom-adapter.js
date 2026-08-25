@@ -143,6 +143,16 @@
     return longestNormalizedText([element]);
   }
 
+  function assistantBusy(element) {
+    if (!element) return false;
+    if (element.getAttribute?.('aria-busy') === 'true') return true;
+
+    const turn = element.closest?.(
+      '[data-turn="assistant"], [data-testid^="conversation-turn-"], [data-message-author-role="assistant"]'
+    );
+    return Boolean(turn && turn !== element && turn.getAttribute?.('aria-busy') === 'true');
+  }
+
   function finalResponseAction(element) {
     if (!element) return null;
     const selector = 'button[data-testid="copy-turn-action-button"]';
@@ -180,6 +190,7 @@
       completionAction.disabled !== true &&
       completionAction.getAttribute?.('aria-disabled') !== 'true'
     );
+    const assistantBusyNow = assistantBusy(lastAssistant);
 
     const visibleButtons = buttons.filter((button) => isVisible(button, windowObject));
     const stopVisible = visibleButtons.some(isStopControl);
@@ -200,6 +211,7 @@
       stopVisible,
       sendVisible,
       completionReady,
+      assistantBusy: assistantBusyNow,
       assistantCount: assistantNodes.length,
       userCount: userNodes.length,
       lastAssistantSignature: fullAssistantText ? hashText(fullAssistantText) : '',
