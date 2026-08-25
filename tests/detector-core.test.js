@@ -223,3 +223,51 @@ test('does not complete on stable reasoning text before the final response actio
     [{ type: 'response_complete', message: 'Here is the final answer.' }]
   );
 });
+
+test('completes in a background tab after Stop disappears even if the Copy action is not rendered', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 2,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    sendVisible: false,
+    stopVisible: true
+  }));
+  detector.scan(snapshot({
+    now: 100,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'final-answer',
+    assistantText: 'Finished while the tab is in the background.',
+    sendVisible: true,
+    stopVisible: false,
+    completionReady: false
+  }));
+
+  assert.deepEqual(
+    detector.scan(snapshot({
+      now: 250,
+      userCount: 2,
+      assistantCount: 2,
+      assistantSignature: 'final-answer',
+      assistantText: 'Finished while the tab is in the background.',
+      sendVisible: true,
+      stopVisible: false,
+      completionReady: false
+    })),
+    [{ type: 'response_complete', message: 'Finished while the tab is in the background.' }]
+  );
+});
