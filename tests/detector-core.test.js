@@ -276,3 +276,72 @@ test('completes in a background tab when assistant busy clears even if controls 
     [{ type: 'response_complete', message: 'Finished while the tab is in the background.' }]
   );
 });
+
+test('marks compatibility unknown instead of guessing when assistant content has no recognized completion signal', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 20,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'new-unknown-answer',
+    assistantText: 'New answer from an unrecognized page shape.',
+    sendVisible: true,
+    stopVisible: false,
+    assistantBusy: false,
+    completionReady: false
+  })), []);
+
+  assert.equal(detector.getState().compatibilityIssue, 'completion-signal-unknown');
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 1000,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'new-unknown-answer',
+    assistantText: 'New answer from an unrecognized page shape.',
+    sendVisible: true,
+    stopVisible: false,
+    assistantBusy: false,
+    completionReady: false
+  })), []);
+});
+
+test('clears compatibility warning once a recognized completion signal appears', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({ now: 0 }));
+  detector.markUserSubmitted(10);
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'new-answer',
+    assistantText: 'New answer.',
+    assistantBusy: false,
+    completionReady: false
+  }));
+  assert.equal(detector.getState().compatibilityIssue, 'completion-signal-unknown');
+
+  detector.scan(snapshot({
+    now: 200,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'new-answer',
+    assistantText: 'New answer.',
+    assistantBusy: false,
+    completionReady: true
+  }));
+
+  assert.equal(detector.getState().compatibilityIssue, null);
+});
