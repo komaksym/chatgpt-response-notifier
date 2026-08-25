@@ -11,6 +11,7 @@
     let awaitingResponse = false;
     let activityObserved = false;
     let submissionBaselinePending = false;
+    let stopObservedSinceSubmission = false;
     let lastAssistantCount = 0;
     let lastUserCount = 0;
     let lastAssistantSignature = '';
@@ -33,6 +34,7 @@
       generating = false;
       activityObserved = false;
       submissionBaselinePending = true;
+      stopObservedSinceSubmission = false;
       lastContentChangeAt = null;
       lastSubmissionAt = Number.isFinite(timestamp) ? timestamp : Date.now();
     }
@@ -63,6 +65,7 @@
           awaitingResponse = true;
           generating = true;
           activityObserved = true;
+          stopObservedSinceSubmission = stopVisible;
           lastContentChangeAt = now;
         }
 
@@ -89,6 +92,9 @@
       }
 
       submissionBaselinePending = false;
+      if (awaitingResponse && stopVisible) {
+        stopObservedSinceSubmission = true;
+      }
 
       const strongStartSignal =
         (stopVisible && !lastStopVisible) ||
@@ -109,12 +115,17 @@
         ? idleFor >= stableMs
         : !stopVisible && idleFor >= fallbackStableMs;
       const completionSignature = hasAssistantSignal ? assistantSignature : '';
+      const lifecycleCompletionReady =
+        stopObservedSinceSubmission &&
+        !stopVisible &&
+        sendVisible;
+      const completionConfirmed = completionReady || lifecycleCompletionReady;
 
       if (
         generating &&
         awaitingResponse &&
         activityObserved &&
-        completionReady &&
+        completionConfirmed &&
         stableLongEnough &&
         completionSignature &&
         completionSignature !== lastCompletedSignature
@@ -126,6 +137,7 @@
         generating = false;
         awaitingResponse = false;
         activityObserved = false;
+        stopObservedSinceSubmission = false;
         lastCompletedSignature = completionSignature;
         lastContentChangeAt = null;
       }
@@ -146,6 +158,7 @@
         awaitingResponse,
         activityObserved,
         submissionBaselinePending,
+        stopObservedSinceSubmission,
         lastAssistantCount,
         lastUserCount,
         lastAssistantSignature,
