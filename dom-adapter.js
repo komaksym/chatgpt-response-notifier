@@ -148,7 +148,7 @@
     if (element.getAttribute?.('aria-busy') === 'true') return true;
 
     const turn = element.closest?.(
-      '[data-turn="assistant"], [data-testid^="conversation-turn-"], [data-message-author-role="assistant"]'
+      '[data-turn="assistant"], [data-testid^="conversation-turn-"]'
     );
     return Boolean(turn && turn !== element && turn.getAttribute?.('aria-busy') === 'true');
   }
