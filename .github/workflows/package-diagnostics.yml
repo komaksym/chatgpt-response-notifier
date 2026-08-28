@@ -1,0 +1,29 @@
+name: Package diagnostic extension
+
+on:
+  push:
+    branches:
+      - feat/non-mutating-diagnostics
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage unpacked extension
+        run: |
+          mkdir -p dist
+          cp manifest.json dist/
+          cp content-script.js detector-core.js dom-adapter.js page-utils.js tab-marker.js dist/
+          cp popup.html popup.css popup.js dist/
+          cp service-worker.js offscreen.html offscreen.js dist/
+          cp -R icons service-worker sounds dist/
+
+      - name: Upload ready-to-install extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatgpt-response-notifier-diagnostics
+          path: dist/
+          if-no-files-found: error
