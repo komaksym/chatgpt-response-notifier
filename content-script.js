@@ -25,7 +25,13 @@
     chrome.runtime
   ) {
     const existingMonitor = root.__chatgptNotifierMonitor;
+    let recoveredPendingDispatch = null;
     if (existingMonitor) {
+      try {
+        recoveredPendingDispatch = existingMonitor.getDebug?.().pendingDispatch || null;
+      } catch (error) {
+        console.warn('Could not recover pending ChatGPT notifier dispatch:', error);
+      }
       try {
         existingMonitor.stop?.();
       } catch (error) {
@@ -38,7 +44,8 @@
       documentObject: document,
       windowObject: window,
       chromeObject: chrome,
-      MutationObserverClass: MutationObserver
+      MutationObserverClass: MutationObserver,
+      initialPendingDispatch: recoveredPendingDispatch
     });
     root.__chatgptNotifierMonitor.start();
   }
@@ -61,7 +68,8 @@
     setIntervalFn = setInterval,
     clearIntervalFn = clearInterval,
     MutationObserverClass,
-    tabMarker = null
+    tabMarker = null,
+    initialPendingDispatch = null
   }) {
     let detector = createDetector({ stableMs, fallbackStableMs });
     let currentUrl = windowObject.location.href;
@@ -74,6 +82,8 @@
     let lastDispatch = null;
     let lastScanReason = 'not-started';
     let lastSubmissionAt = -Infinity;
+    let pendingDispatch = initialPendingDispatch;
+    let lastDispatchAttemptAt = -Infinity;
     const resolvedTabMarker = tabMarker || createTabMarker({ documentObject, windowObject });
 
     function resetForRoute(url) {
@@ -99,6 +109,8 @@
     }
 
     function sendEvent(event) {
+      pendingDispatch = event;
+      lastDispatchAttemptAt = now();
       const payload = {
         type: 'CHATGPT_EVENT',
         event,
@@ -128,6 +140,7 @@
             event,
             timestamp: now()
           };
+          if (response?.ok) pendingDispatch = null;
         });
       } catch (error) {
         failDispatch(event, error);
@@ -152,6 +165,13 @@
       lastSnapshot = snapshot;
       lastScanReason = reason;
       events.forEach(sendEvent);
+      if (
+        events.length === 0 &&
+        pendingDispatch &&
+        now() - lastDispatchAttemptAt >= 2000
+      ) {
+        sendEvent(pendingDispatch);
+      }
       syncHeartbeat();
       return events;
     }
@@ -227,6 +247,7 @@
         tabMarker: resolvedTabMarker.getState(),
         lastSnapshot,
         lastDispatch,
+        pendingDispatch,
         lastScanReason
       });
       return false;
@@ -292,6 +313,7 @@
         tabMarker: resolvedTabMarker.getState(),
         lastSnapshot,
         lastDispatch,
+        pendingDispatch,
         lastScanReason
       };
     }
