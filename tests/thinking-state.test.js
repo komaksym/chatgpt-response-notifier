@@ -49,7 +49,7 @@ test('does not complete a response while the new assistant turn is only thinking
   const windowObject = {
     getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' })
   };
-  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 2000 });
 
   detector.scan(collectSnapshot(documentObject, windowObject, 0));
   detector.markUserSubmitted(1000);
