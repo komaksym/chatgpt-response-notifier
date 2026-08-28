@@ -18,7 +18,7 @@ function turn(text, completed = false) {
   };
 }
 
-test('stops cleanly when the extension runtime disappears before dispatch', () => {
+test('keeps scanning until recovery when the extension runtime disappears before dispatch', () => {
   let now = 0;
   let observerDisconnected = false;
   let markerStopped = false;
@@ -88,8 +88,13 @@ test('stops cleanly when the extension runtime disappears before dispatch', () =
   now = 20;
 
   assert.doesNotThrow(() => monitor.scan('runtime-invalidated'));
+  assert.equal(observerDisconnected, false);
+  assert.equal(markerStopped, false);
+  assert.deepEqual(removedEvents, []);
+  assert.equal(monitor.getDebug().lastDispatch?.ok, false);
+
+  monitor.stop();
   assert.equal(observerDisconnected, true);
   assert.equal(markerStopped, true);
   assert.deepEqual(removedEvents.sort(), ['click', 'keydown', 'submit']);
-  assert.equal(monitor.getDebug().lastDispatch?.ok, false);
 });
