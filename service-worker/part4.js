@@ -35,10 +35,9 @@ async function handleChatGPTEvent(message, sender) {
       message: body,
       contextMessage: pageTitle,
       priority: 2,
-      requireInteraction: false,
+      requireInteraction: true,
       silent: soundEnabled
     });
-    scheduleNotificationClear(createdId);
   }
 
   const lastEvent = {
