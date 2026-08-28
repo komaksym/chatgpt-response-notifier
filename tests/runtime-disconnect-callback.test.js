@@ -37,7 +37,7 @@ function loadApi() {
   return context.ChatGPTNotifierContent;
 }
 
-test('stops the monitor when sendMessage reports a disconnected runtime', () => {
+test('keeps monitoring when sendMessage reports a disconnected runtime', () => {
   const api = loadApi();
   let observerDisconnected = false;
   let markerStopped = false;
@@ -70,7 +70,11 @@ test('stops the monitor when sendMessage reports a disconnected runtime', () => 
   monitor.start();
   monitor.scan('disconnect');
 
+  assert.equal(observerDisconnected, false);
+  assert.equal(markerStopped, false);
+  assert.match(monitor.getDebug().lastDispatch.error, /receiving end does not exist/i);
+
+  monitor.stop();
   assert.equal(observerDisconnected, true);
   assert.equal(markerStopped, true);
-  assert.match(monitor.getDebug().lastDispatch.error, /receiving end does not exist/i);
 });
