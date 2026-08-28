@@ -95,7 +95,7 @@
       const hasAssistantSignal = assistantCount > 0 && Boolean(assistantSignature);
       const hadEstablishedAssistant = lastAssistantCount > 0 && Boolean(lastAssistantSignature);
 
-      if (userAdded && !awaitingResponse && hadEstablishedAssistant) {
+      if (userAdded && !awaitingResponse) {
         markUserSubmitted(now);
       }
 
@@ -107,15 +107,30 @@
         stopObservedSinceSubmission = true;
       }
 
+      const postCompletionMutation =
+        assistantChanged &&
+        !awaitingResponse &&
+        assistantCount === lastAssistantCount &&
+        userCount === lastUserCount &&
+        !stopVisible &&
+        !assistantBusy;
+
+      if (postCompletionMutation) {
+        lastCompletedSignature = assistantSignature;
+      }
+
       const strongStartSignal =
-        (assistantBusy && !lastAssistantBusy) ||
-        (stopVisible && !lastStopVisible) ||
-        (awaitingResponse && !sendVisible && lastSendVisible) ||
-        (assistantAdded && awaitingResponse) ||
-        (assistantChanged && awaitingResponse);
+        !postCompletionMutation &&
+        (
+          (assistantBusy && !lastAssistantBusy) ||
+          (stopVisible && !lastStopVisible) ||
+          (awaitingResponse && !sendVisible && lastSendVisible) ||
+          assistantAdded ||
+          assistantChanged
+        );
 
       if (strongStartSignal) {
-        if (stopVisible && !lastStopVisible) awaitingResponse = true;
+        awaitingResponse = true;
         generating = true;
         activityObserved = true;
         lastContentChangeAt = now;
@@ -136,10 +151,19 @@
         sendVisible &&
         !assistantBusy;
       const fallbackCompletionReady = lifecycleCompletionReady && idleFor >= fallbackStableMs;
-      const completionConfirmed = strongCompletionReady || fallbackCompletionReady;
+      const hardFallbackCompletionReady =
+        generating &&
+        awaitingResponse &&
+        activityObserved &&
+        hasAssistantSignal &&
+        idleFor >= fallbackStableMs;
+      const completionConfirmed =
+        strongCompletionReady ||
+        fallbackCompletionReady ||
+        hardFallbackCompletionReady;
       const stableLongEnough = strongCompletionReady
         ? idleFor >= stableMs
-        : fallbackCompletionReady;
+        : fallbackCompletionReady || hardFallbackCompletionReady;
       const completionSignature = hasAssistantSignal ? assistantSignature : '';
 
       if (

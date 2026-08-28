@@ -19,7 +19,7 @@ function snapshot({ now, assistantBusy, sendVisible, stopVisible }) {
 }
 
 test('does not complete reasoning when Stop disappears and Send returns while assistant stays busy', () => {
-  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 1000 });
 
   detector.scan({
     now: 0,

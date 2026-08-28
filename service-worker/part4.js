@@ -18,10 +18,6 @@ async function handleChatGPTEvent(message, sender) {
     throw new Error('ChatGPT event did not include a source tab.');
   }
 
-  if (await isSourceTabVisible(tabId)) {
-    return { ok: true, skipped: 'source_visible' };
-  }
-
   const body = truncate(event.message);
   const pageTitle = truncate(message?.page?.title || sender.tab.title || 'ChatGPT', 80);
   const marker = markerEnabled
@@ -39,10 +35,9 @@ async function handleChatGPTEvent(message, sender) {
       message: body,
       contextMessage: pageTitle,
       priority: 2,
-      requireInteraction: false,
+      requireInteraction: true,
       silent: soundEnabled
     });
-    scheduleNotificationClear(createdId);
   }
 
   const lastEvent = {

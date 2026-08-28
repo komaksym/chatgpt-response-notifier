@@ -96,7 +96,9 @@
     const seen = new Set();
     const selectors = [
       '[data-message-author-role="' + role + '"]',
-      '[data-turn="' + role + '"]'
+      '[data-turn="' + role + '"]',
+      '[data-author-role="' + role + '"]',
+      '[data-role="' + role + '"]'
     ];
 
     for (const [index, selector] of selectors.entries()) {
@@ -136,10 +138,8 @@
     const contentText = longestNormalizedText(contentNodes);
     if (contentText) return contentText;
 
-    // Current ChatGPT uses the outer data-turn wrapper for thinking/progress labels.
-    // Those labels are not assistant answer content and must never complete a response.
-    if (element.getAttribute?.('data-turn') === 'assistant') return '';
-
+    // Reliability-first fallback: if ChatGPT changes its inner answer wrapper,
+    // use the assistant turn's rendered text instead of treating the answer as empty.
     return longestNormalizedText([element]);
   }
 
@@ -177,9 +177,18 @@
   }
 
   function collectSnapshot(documentObject, windowObject, now = Date.now()) {
-    const assistantNodes = turnNodes(documentObject, 'assistant');
+    let assistantNodes = turnNodes(documentObject, 'assistant');
     const userNodes = turnNodes(documentObject, 'user');
     const buttons = Array.from(documentObject.querySelectorAll('button,[role="button"]'));
+
+    if (assistantNodes.length === 0) {
+      const root = conversationRoot(documentObject);
+      assistantNodes = Array.from(
+        root?.querySelectorAll?.(
+          '[data-message-content], .markdown, .whitespace-pre-wrap, [class~="prose"]'
+        ) || []
+      );
+    }
 
     const lastAssistant = assistantNodes.at(-1);
     const fullAssistantText = assistantText(lastAssistant);

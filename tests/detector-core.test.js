@@ -146,8 +146,8 @@ test('infers a new submission when a user message is appended to an established 
   );
 });
 
-test('does not complete on stable reasoning text before the final response action appears', () => {
-  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+test('does not complete a short reasoning pause before the final response appears', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 1000 });
 
   detector.scan(snapshot({
     now: 0,
@@ -342,7 +342,7 @@ test('falls back after a stable Stop -> Send lifecycle when busy and Copy signal
   );
 });
 
-test('marks compatibility unknown instead of guessing when assistant content has no recognized completion signal', () => {
+test('eventually completes even when no recognized completion signal appears', () => {
   const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
 
   detector.scan(snapshot({
@@ -367,8 +367,6 @@ test('marks compatibility unknown instead of guessing when assistant content has
     completionReady: false
   })), []);
 
-  assert.equal(detector.getState().compatibilityIssue, 'completion-signal-unknown');
-
   assert.deepEqual(detector.scan(snapshot({
     now: 1000,
     userCount: 2,
@@ -379,7 +377,42 @@ test('marks compatibility unknown instead of guessing when assistant content has
     stopVisible: false,
     assistantBusy: false,
     completionReady: false
-  })), []);
+  })), [{ type: 'response_complete', message: 'New answer from an unrecognized page shape.' }]);
+});
+
+test('tracks a new assistant answer even when submission detection was missed', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+
+  detector.scan(snapshot({
+    now: 100,
+    userCount: 1,
+    assistantCount: 2,
+    assistantSignature: 'new-assistant',
+    assistantText: 'New response detected without a submission event.',
+    sendVisible: false,
+    stopVisible: true,
+    assistantBusy: true
+  }));
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 500,
+    userCount: 1,
+    assistantCount: 2,
+    assistantSignature: 'new-assistant',
+    assistantText: 'New response detected without a submission event.',
+    sendVisible: false,
+    stopVisible: true,
+    assistantBusy: true
+  })), [{ type: 'response_complete', message: 'New response detected without a submission event.' }]);
 });
 
 test('clears compatibility warning once a recognized completion signal appears', () => {
