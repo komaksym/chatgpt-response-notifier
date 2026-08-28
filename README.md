@@ -9,7 +9,7 @@ A lightweight Chrome extension that alerts you when ChatGPT finishes responding 
 - Visual tab highlighting so you can identify which ChatGPT tab finished
 - Optional custom chime with adjustable volume
 - Detection of completed responses and action-required states
-- Fails safely if ChatGPT's completion markers change: unknown completion state is exposed in monitor debug data instead of guessed
+- Uses strong completion markers first, then a conservative stabilized Stop → Send fallback for background tabs; truly unknown completion states remain visible in monitor debug data
 - Support for multiple ChatGPT tabs
 - Diagnostic notification and sound tests from the popup
 
@@ -33,4 +33,4 @@ Open the extension popup to enable or disable desktop alerts, tab highlighting, 
 
 ## Version
 
-Current manifest version: **0.8.11**.
+Current manifest version: **0.8.12**.
