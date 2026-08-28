@@ -10,7 +10,11 @@ const lastEventDetailsElement = document.querySelector('#last-event-details');
 const resultElement = document.querySelector('#details');
 const testSoundButton = document.querySelector('#test-sound-button');
 const testButton = document.querySelector('#test-button');
-const refreshButton = document.querySelector('#refresh-button');
+const captureDiagnosticsButton = document.querySelector('#capture-diagnostics-button');
+const copyDiagnosticsButton = document.querySelector('#copy-diagnostics-button');
+const repairMonitorsButton = document.querySelector('#repair-monitors-button');
+
+let latestDiagnosticsText = '';
 
 const CHATGPT_URLS = ['https://chatgpt.com/*', 'https://chat.openai.com/*'];
 const DEFAULT_SOUND_VOLUME = 0.7;
@@ -125,44 +129,151 @@ function describeTab(item, index) {
   ].filter(Boolean).join('\n');
 }
 
-async function refreshTabStatus() {
-  refreshButton.disabled = true;
+function queryChatGptTabs() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ url: CHATGPT_URLS }, (tabs) => {
+      const error = runtimeError();
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+      resolve(tabs);
+    });
+  });
+}
+
+function diagnosticTab(item) {
+  const response = item.response || {};
+  const state = response.state || {};
+  const snapshot = response.lastSnapshot || {};
+  return {
+    tab: {
+      id: item.tab.id,
+      title: item.tab.title || null,
+      url: item.tab.url || null,
+      active: Boolean(item.tab.active),
+      windowId: item.tab.windowId
+    },
+    connected: item.connected,
+    error: item.error || null,
+    version: response.version || null,
+    state: {
+      awaitingResponse: Boolean(state.awaitingResponse),
+      generating: Boolean(state.generating),
+      activityObserved: Boolean(state.activityObserved),
+      assistantBusyObservedSinceSubmission: Boolean(state.assistantBusyObservedSinceSubmission),
+      stopObservedSinceSubmission: Boolean(state.stopObservedSinceSubmission),
+      compatibilityIssue: state.compatibilityIssue || null
+    },
+    lastSnapshot: {
+      assistantCount: snapshot.assistantCount ?? null,
+      userCount: snapshot.userCount ?? null,
+      lastAssistantSignature: snapshot.lastAssistantSignature ?? null,
+      lastAssistantText: snapshot.lastAssistantText ?? null,
+      sendVisible: snapshot.sendVisible ?? null,
+      stopVisible: snapshot.stopVisible ?? null,
+      completionReady: snapshot.completionReady ?? null,
+      assistantBusy: snapshot.assistantBusy ?? null,
+      actionFingerprint: snapshot.actionFingerprint ?? null,
+      actionLabel: snapshot.actionLabel ?? null
+    },
+    lastDispatch: response.lastDispatch || null,
+    lastScanReason: response.lastScanReason || null
+  };
+}
+
+async function refreshTabStatus({ repair = false } = {}) {
   monitoredTabsElement.textContent = 'Checking…';
+  const injection = repair ? await ensureMonitors() : null;
 
-  const injection = await ensureMonitors();
-
-  chrome.tabs.query({ url: CHATGPT_URLS }, async (tabs) => {
-    const queryError = runtimeError();
-    if (queryError) {
-      monitoredTabsElement.textContent = 'Error';
-      resultElement.textContent = `Could not list ChatGPT tabs: ${queryError}`;
-      refreshButton.disabled = false;
-      return;
-    }
-
+  try {
+    const tabs = await queryChatGptTabs();
     const results = await Promise.all(tabs.map(pingTab));
     const connected = results.filter((item) => item.connected);
     monitoredTabsElement.textContent = `${connected.length}/${tabs.length} connected`;
 
     if (tabs.length === 0) {
-      resultElement.textContent = 'No open ChatGPT tabs. Open chatgpt.com, then refresh status.';
-    } else {
-      const summary = connected.length === tabs.length
-        ? `Monitoring all ${connected.length} ChatGPT tab${connected.length === 1 ? '' : 's'}.`
-        : `${connected.length} of ${tabs.length} ChatGPT tabs are connected.`;
-      const injectionLine = injection?.ok
-        ? `Monitor injection: ${injection.injectedTabs}/${injection.totalTabs} tabs.`
-        : `Monitor injection failed: ${injection?.error || 'Unknown error'}`;
-      resultElement.textContent = [
-        summary,
-        injectionLine,
-        '',
-        ...results.map(describeTab)
-      ].join('\n');
+      resultElement.textContent = 'No open ChatGPT tabs.';
+      return;
     }
 
-    refreshButton.disabled = false;
-  });
+    const summary = connected.length === tabs.length
+      ? `Monitoring all ${connected.length} ChatGPT tab${connected.length === 1 ? '' : 's'}.`
+      : `${connected.length} of ${tabs.length} ChatGPT tabs are connected.`;
+    const injectionLine = repair
+      ? injection?.ok
+        ? `Monitor repair: ${injection.injectedTabs}/${injection.totalTabs} tabs injected.`
+        : `Monitor repair failed: ${injection?.error || 'Unknown error'}`
+      : 'Passive check only; no monitors were injected.';
+
+    resultElement.textContent = [
+      summary,
+      injectionLine,
+      '',
+      ...results.map(describeTab)
+    ].join('\n');
+  } catch (error) {
+    monitoredTabsElement.textContent = 'Error';
+    resultElement.textContent = `Could not list ChatGPT tabs: ${error.message}`;
+  }
+}
+
+async function captureDiagnostics() {
+  captureDiagnosticsButton.disabled = true;
+  copyDiagnosticsButton.disabled = true;
+  resultElement.textContent = 'Capturing existing monitor state without repair or tab activation…';
+
+  try {
+    const tabs = await queryChatGptTabs();
+    const results = await Promise.all(tabs.map(pingTab));
+    const connected = results.filter((item) => item.connected);
+    monitoredTabsElement.textContent = `${connected.length}/${tabs.length} connected`;
+
+    const diagnostics = {
+      capturedAt: new Date().toISOString(),
+      mode: 'passive-no-repair',
+      tabs: results.map(diagnosticTab)
+    };
+    latestDiagnosticsText = JSON.stringify(diagnostics, null, 2);
+    resultElement.textContent = latestDiagnosticsText;
+    copyDiagnosticsButton.disabled = false;
+  } catch (error) {
+    latestDiagnosticsText = '';
+    resultElement.textContent = `Diagnostic capture failed: ${error.message}`;
+  } finally {
+    captureDiagnosticsButton.disabled = false;
+  }
+}
+
+async function repairMonitors() {
+  repairMonitorsButton.disabled = true;
+  const injection = await ensureMonitors();
+  if (!injection?.ok) {
+    resultElement.textContent = `Monitor repair failed: ${injection?.error || 'Unknown error'}`;
+    repairMonitorsButton.disabled = false;
+    return;
+  }
+  await refreshTabStatus({ repair: false });
+  resultElement.textContent = [
+    `Monitor repair: ${injection.injectedTabs}/${injection.totalTabs} tabs injected.`,
+    '',
+    resultElement.textContent
+  ].join('\n');
+  repairMonitorsButton.disabled = false;
+}
+
+async function copyDiagnostics() {
+  if (!latestDiagnosticsText) return;
+  try {
+    await navigator.clipboard.writeText(latestDiagnosticsText);
+    copyDiagnosticsButton.textContent = 'Copied';
+  } catch (error) {
+    resultElement.textContent = [
+      latestDiagnosticsText,
+      '',
+      `Clipboard copy failed: ${error.message}. Select the JSON above and copy it manually.`
+    ].join('\n');
+  }
 }
 
 function sendTestNotification() {
@@ -256,12 +367,10 @@ soundVolumeElement.addEventListener('change', () => {
 
 testSoundButton.addEventListener('click', sendTestSound);
 testButton.addEventListener('click', sendTestNotification);
-refreshButton.addEventListener('click', () => {
-  readPermissionLevel();
-  readSettingsAndLastEvent();
-  refreshTabStatus();
-});
+captureDiagnosticsButton.addEventListener('click', captureDiagnostics);
+copyDiagnosticsButton.addEventListener('click', copyDiagnostics);
+repairMonitorsButton.addEventListener('click', repairMonitors);
 
 readPermissionLevel();
 readSettingsAndLastEvent();
-refreshTabStatus();
+refreshTabStatus({ repair: false });
