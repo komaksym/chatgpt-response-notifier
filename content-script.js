@@ -95,7 +95,6 @@
         event,
         timestamp: now()
       };
-      stop();
     }
 
     function sendEvent(event) {
@@ -119,9 +118,6 @@
           const error = runtime.lastError;
           if (error) {
             lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
-            if (/context invalidated|receiving end does not exist|could not establish connection/i.test(error.message || '')) {
-              stop();
-            }
             return;
           }
           lastDispatch = {
