@@ -76,15 +76,17 @@
       </section>
 
       <div class="actions">
+        <button id="capture-diagnostics-button" class="full-width" type="button">Capture diagnostics</button>
+        <button id="copy-diagnostics-button" class="secondary full-width" type="button" disabled>Copy diagnostics</button>
         <button id="test-sound-button" type="button">Test sound</button>
         <button id="test-button" class="secondary" type="button">Test notification</button>
-        <button id="refresh-button" class="secondary full-width" type="button">Refresh status</button>
+        <button id="repair-monitors-button" class="secondary full-width" type="button">Repair monitors</button>
       </div>
 
       <pre id="details" aria-live="polite">Desktop alerts, tab markers, and sound are enabled by default.</pre>
 
       <p class="note">
-        Finished tabs receive a bright favicon and title prefix. The marker clears automatically when you open that tab.
+        After a missed background alert, capture diagnostics before opening that ChatGPT tab. Repair monitors only after capture.
       </p>
     </main>
     <script src="popup.js"></script>
