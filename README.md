@@ -1,16 +1,15 @@
 # ChatGPT Response Notifier
 
-A reliability-first Chrome extension that alerts you when ChatGPT finishes responding or needs your approval.
+A lightweight Chrome extension that alerts you when ChatGPT finishes responding or needs your approval.
 
 ## Features
 
-- Response notifications stay visible until dismissed or clicked
-- Detected responses notify even if Chrome's tab/window focus state is ambiguous
+- Desktop notifications that automatically disappear after 10 seconds
+- No desktop notification when the source ChatGPT tab is already active and focused
 - Visual tab highlighting so you can identify which ChatGPT tab finished
 - Optional custom chime with adjustable volume
 - Detection of completed responses and action-required states
-- Polls ChatGPT continuously and treats stable new assistant output as a completion fallback when ChatGPT's normal completion markers are missing
-- Periodically re-checks and re-injects page monitors if Chrome invalidates or disconnects them
+- Uses strong completion markers first, then a conservative stabilized Stop → Send fallback for background tabs; truly unknown completion states remain visible in monitor debug data
 - Support for multiple ChatGPT tabs
 - Diagnostic notification and sound tests from the popup
 
@@ -34,4 +33,4 @@ Open the extension popup to enable or disable desktop alerts, tab highlighting, 
 
 ## Version
 
-Current manifest version: **0.8.13**.
+Current manifest version: **0.8.12**.

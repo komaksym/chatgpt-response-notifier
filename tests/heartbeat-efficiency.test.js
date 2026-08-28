@@ -50,21 +50,20 @@ function makeMonitorHarness() {
   };
 }
 
-test('polling starts immediately and stays active', () => {
+test('heartbeat is idle until a response is pending', () => {
   const harness = makeMonitorHarness();
   harness.monitor.start();
 
-  assert.equal(harness.intervalStarts(), 1);
+  assert.equal(harness.intervalStarts(), 0);
 
   harness.setNow(2000);
   harness.monitor.markSubmission('test');
 
   assert.equal(harness.intervalStarts(), 1);
   harness.monitor.stop();
-  assert.equal(harness.intervalClears(), 1);
 });
 
-test('polling continues after a response completes and stops only with the monitor', () => {
+test('heartbeat stops after the pending response completes', () => {
   let intervalStarts = 0;
   let intervalClears = 0;
   let nowValue = 1000;
@@ -162,7 +161,6 @@ test('polling continues after a response completes and stops only with the monit
   nowValue = 1300;
   monitor.scan('test-final');
 
-  assert.equal(intervalClears, 0);
-  monitor.stop();
   assert.equal(intervalClears, 1);
+  monitor.stop();
 });

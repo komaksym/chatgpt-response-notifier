@@ -37,24 +37,18 @@ function loadApi() {
   return context.ChatGPTNotifierContent;
 }
 
-test('keeps monitoring when sendMessage reports a disconnected runtime', () => {
+test('stops the monitor when sendMessage reports a disconnected runtime', () => {
   const api = loadApi();
   let observerDisconnected = false;
   let markerStopped = false;
-  let disconnected = true;
-  let now = 0;
   const chromeObject = {
     runtime: {
       onMessage: { addListener() {}, removeListener() {} },
       lastError: null,
       sendMessage(_payload, callback) {
-        if (disconnected) {
-          this.lastError = { message: 'Could not establish connection. Receiving end does not exist.' };
-          callback();
-          this.lastError = null;
-          return;
-        }
-        callback({ ok: true });
+        this.lastError = { message: 'Could not establish connection. Receiving end does not exist.' };
+        callback();
+        this.lastError = null;
       }
     }
   };
@@ -70,28 +64,13 @@ test('keeps monitoring when sendMessage reports a disconnected runtime', () => {
     windowObject: { location: { href: 'https://chatgpt.com/c/test' } },
     chromeObject,
     MutationObserverClass: class { observe() {} disconnect() { observerDisconnected = true; } },
-    tabMarker: marker,
-    now: () => now,
-    setIntervalFn: () => 1,
-    clearIntervalFn: () => {}
+    tabMarker: marker
   });
 
   monitor.start();
   monitor.scan('disconnect');
 
-  assert.equal(observerDisconnected, false);
-  assert.equal(markerStopped, false);
-  assert.match(monitor.getDebug().lastDispatch.error, /receiving end does not exist/i);
-  assert.equal(monitor.getDebug().pendingDispatch?.type, 'response_complete');
-
-  disconnected = false;
-  now = 3000;
-  monitor.scan('retry');
-
-  assert.equal(monitor.getDebug().lastDispatch.ok, true);
-  assert.equal(monitor.getDebug().pendingDispatch, null);
-
-  monitor.stop();
   assert.equal(observerDisconnected, true);
   assert.equal(markerStopped, true);
+  assert.match(monitor.getDebug().lastDispatch.error, /receiving end does not exist/i);
 });

@@ -25,13 +25,7 @@
     chrome.runtime
   ) {
     const existingMonitor = root.__chatgptNotifierMonitor;
-    let recoveredPendingDispatch = null;
     if (existingMonitor) {
-      try {
-        recoveredPendingDispatch = existingMonitor.getDebug?.().pendingDispatch || null;
-      } catch (error) {
-        console.warn('Could not recover pending ChatGPT notifier dispatch:', error);
-      }
       try {
         existingMonitor.stop?.();
       } catch (error) {
@@ -44,13 +38,12 @@
       documentObject: document,
       windowObject: window,
       chromeObject: chrome,
-      MutationObserverClass: MutationObserver,
-      initialPendingDispatch: recoveredPendingDispatch
+      MutationObserverClass: MutationObserver
     });
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.13';
+  const CONTENT_SCRIPT_VERSION = '0.8.12';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -60,16 +53,14 @@
     windowObject,
     chromeObject,
     stableMs = 1400,
-    fallbackStableMs = 8000,
-    pollMs = 750,
+    fallbackStableMs = 4500,
     now = () => Date.now(),
     setTimeoutFn = setTimeout,
     clearTimeoutFn = clearTimeout,
     setIntervalFn = setInterval,
     clearIntervalFn = clearInterval,
     MutationObserverClass,
-    tabMarker = null,
-    initialPendingDispatch = null
+    tabMarker = null
   }) {
     let detector = createDetector({ stableMs, fallbackStableMs });
     let currentUrl = windowObject.location.href;
@@ -82,15 +73,13 @@
     let lastDispatch = null;
     let lastScanReason = 'not-started';
     let lastSubmissionAt = -Infinity;
-    let pendingDispatch = initialPendingDispatch;
-    let lastDispatchAttemptAt = -Infinity;
     const resolvedTabMarker = tabMarker || createTabMarker({ documentObject, windowObject });
 
     function resetForRoute(url) {
       const submissionTimestamp = lastSubmissionAt;
       currentUrl = url;
       detector = createDetector({ stableMs, fallbackStableMs });
-      if (now() - submissionTimestamp <= 120000) {
+      if (now() - submissionTimestamp <= 10000) {
         detector.markUserSubmitted(submissionTimestamp);
       } else {
         lastSubmissionAt = -Infinity;
@@ -106,11 +95,10 @@
         event,
         timestamp: now()
       };
+      stop();
     }
 
     function sendEvent(event) {
-      pendingDispatch = event;
-      lastDispatchAttemptAt = now();
       const payload = {
         type: 'CHATGPT_EVENT',
         event,
@@ -131,6 +119,9 @@
           const error = runtime.lastError;
           if (error) {
             lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
+            if (/context invalidated|receiving end does not exist|could not establish connection/i.test(error.message || '')) {
+              stop();
+            }
             return;
           }
           lastDispatch = {
@@ -140,7 +131,6 @@
             event,
             timestamp: now()
           };
-          if (response?.ok) pendingDispatch = null;
         });
       } catch (error) {
         failDispatch(event, error);
@@ -148,8 +138,16 @@
     }
 
     function syncHeartbeat() {
-      if (!started || heartbeatTimer !== null) return;
-      heartbeatTimer = setIntervalFn(() => scan('poll'), pollMs);
+      if (!started) return;
+      const state = detector.getState();
+      const pending = state.awaitingResponse || state.generating;
+
+      if (pending && heartbeatTimer === null) {
+        heartbeatTimer = setIntervalFn(() => scan('heartbeat'), 2000);
+      } else if (!pending && heartbeatTimer !== null) {
+        clearIntervalFn(heartbeatTimer);
+        heartbeatTimer = null;
+      }
     }
 
     function scan(reason = 'manual') {
@@ -165,13 +163,6 @@
       lastSnapshot = snapshot;
       lastScanReason = reason;
       events.forEach(sendEvent);
-      if (
-        events.length === 0 &&
-        pendingDispatch &&
-        now() - lastDispatchAttemptAt >= 2000
-      ) {
-        sendEvent(pendingDispatch);
-      }
       syncHeartbeat();
       return events;
     }
@@ -196,6 +187,7 @@
       if (timestamp - lastSubmissionAt < 600) return;
       lastSubmissionAt = timestamp;
       detector.markUserSubmitted(timestamp);
+      syncHeartbeat();
       lastScanReason = `submission:${reason}`;
       scheduleScan(`submission:${reason}`);
     }
@@ -247,7 +239,6 @@
         tabMarker: resolvedTabMarker.getState(),
         lastSnapshot,
         lastDispatch,
-        pendingDispatch,
         lastScanReason
       });
       return false;
@@ -263,7 +254,6 @@
       documentObject.addEventListener?.('submit', submitListener, true);
       scan('initial');
       if (!started) return;
-      syncHeartbeat();
 
       observer = new MutationObserverClass(() => scheduleScan('mutation'));
       observer.observe(documentObject.documentElement || documentObject.body, {
@@ -313,7 +303,6 @@
         tabMarker: resolvedTabMarker.getState(),
         lastSnapshot,
         lastDispatch,
-        pendingDispatch,
         lastScanReason
       };
     }

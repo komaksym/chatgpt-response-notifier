@@ -142,36 +142,6 @@ test('counts a current ChatGPT turn once when it contains a legacy message node'
   assert.equal(snapshot.assistantCount, 1);
 });
 
-test('falls back to the latest rendered answer block when role wrappers are missing', () => {
-  const answer = {
-    innerText: 'Recovered answer without an assistant role wrapper.',
-    textContent: 'Recovered answer without an assistant role wrapper.',
-    querySelector: () => null,
-    querySelectorAll: () => []
-  };
-  const root = {
-    querySelectorAll(selector) {
-      return selector.includes('.markdown') ? [answer] : [];
-    }
-  };
-  const documentObject = {
-    body: root,
-    querySelector(selector) {
-      return selector === 'main' ? root : null;
-    },
-    querySelectorAll(selector) {
-      if (selector === 'button,[role="button"]') return [];
-      return [];
-    }
-  };
-
-  const snapshot = collectSnapshot(documentObject, windowObject, 1);
-
-  assert.equal(snapshot.assistantCount, 1);
-  assert.equal(snapshot.lastAssistantText, 'Recovered answer without an assistant role wrapper.');
-  assert.notEqual(snapshot.lastAssistantSignature, '');
-});
-
 test('marks a response complete only when the final assistant turn has its copy action', () => {
   const content = {
     innerText: 'Final assistant response.',
