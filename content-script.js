@@ -43,7 +43,7 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.12';
+  const CONTENT_SCRIPT_VERSION = '0.8.13';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
@@ -53,7 +53,8 @@
     windowObject,
     chromeObject,
     stableMs = 1400,
-    fallbackStableMs = 4500,
+    fallbackStableMs = 8000,
+    pollMs = 750,
     now = () => Date.now(),
     setTimeoutFn = setTimeout,
     clearTimeoutFn = clearTimeout,
@@ -79,7 +80,7 @@
       const submissionTimestamp = lastSubmissionAt;
       currentUrl = url;
       detector = createDetector({ stableMs, fallbackStableMs });
-      if (now() - submissionTimestamp <= 10000) {
+      if (now() - submissionTimestamp <= 120000) {
         detector.markUserSubmitted(submissionTimestamp);
       } else {
         lastSubmissionAt = -Infinity;
@@ -95,7 +96,6 @@
         event,
         timestamp: now()
       };
-      stop();
     }
 
     function sendEvent(event) {
@@ -119,9 +119,6 @@
           const error = runtime.lastError;
           if (error) {
             lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
-            if (/context invalidated|receiving end does not exist|could not establish connection/i.test(error.message || '')) {
-              stop();
-            }
             return;
           }
           lastDispatch = {
@@ -138,16 +135,8 @@
     }
 
     function syncHeartbeat() {
-      if (!started) return;
-      const state = detector.getState();
-      const pending = state.awaitingResponse || state.generating;
-
-      if (pending && heartbeatTimer === null) {
-        heartbeatTimer = setIntervalFn(() => scan('heartbeat'), 2000);
-      } else if (!pending && heartbeatTimer !== null) {
-        clearIntervalFn(heartbeatTimer);
-        heartbeatTimer = null;
-      }
+      if (!started || heartbeatTimer !== null) return;
+      heartbeatTimer = setIntervalFn(() => scan('poll'), pollMs);
     }
 
     function scan(reason = 'manual') {
@@ -187,7 +176,6 @@
       if (timestamp - lastSubmissionAt < 600) return;
       lastSubmissionAt = timestamp;
       detector.markUserSubmitted(timestamp);
-      syncHeartbeat();
       lastScanReason = `submission:${reason}`;
       scheduleScan(`submission:${reason}`);
     }
@@ -254,6 +242,7 @@
       documentObject.addEventListener?.('submit', submitListener, true);
       scan('initial');
       if (!started) return;
+      syncHeartbeat();
 
       observer = new MutationObserverClass(() => scheduleScan('mutation'));
       observer.observe(documentObject.documentElement || documentObject.body, {
