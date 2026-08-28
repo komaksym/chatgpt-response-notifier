@@ -120,8 +120,9 @@ function describeTab(item, index) {
     `${index + 1}. ${title}`,
     `   v${response.version || '?'} · assistant/user ${snapshot.assistantCount ?? '?'}/${snapshot.userCount ?? '?'}`,
     `   send ${snapshot.sendVisible ? 'yes' : 'no'} · stop ${snapshot.stopVisible ? 'yes' : 'no'} · awaiting ${state.awaitingResponse ? 'yes' : 'no'} · generating ${state.generating ? 'yes' : 'no'}`,
+    state.compatibilityIssue ? `   completion detection: ${state.compatibilityIssue}` : null,
     `   last scan: ${response.lastScanReason || 'unknown'}`
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 async function refreshTabStatus() {

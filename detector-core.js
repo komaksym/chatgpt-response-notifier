@@ -5,13 +5,14 @@
   }
   root.ChatGPTNotifierCore = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function detectorCoreFactory() {
-  function createDetector({ stableMs = 1400, fallbackStableMs = Math.max(4000, stableMs * 3) } = {}) {
+  function createDetector({ stableMs = 1400, fallbackStableMs = Math.max(10000, stableMs * 6) } = {}) {
     let initialized = false;
     let generating = false;
     let awaitingResponse = false;
     let activityObserved = false;
     let submissionBaselinePending = false;
     let assistantBusyObservedSinceSubmission = false;
+    let stopObservedSinceSubmission = false;
     let compatibilityIssue = null;
     let lastAssistantCount = 0;
     let lastUserCount = 0;
@@ -37,6 +38,7 @@
       activityObserved = false;
       submissionBaselinePending = true;
       assistantBusyObservedSinceSubmission = false;
+      stopObservedSinceSubmission = false;
       compatibilityIssue = null;
       lastContentChangeAt = null;
       lastSubmissionAt = Number.isFinite(timestamp) ? timestamp : Date.now();
@@ -71,6 +73,7 @@
           generating = true;
           activityObserved = true;
           assistantBusyObservedSinceSubmission = assistantBusy;
+          stopObservedSinceSubmission = stopVisible;
           lastContentChangeAt = now;
         }
 
@@ -100,6 +103,9 @@
       if (awaitingResponse && assistantBusy) {
         assistantBusyObservedSinceSubmission = true;
       }
+      if (awaitingResponse && stopVisible) {
+        stopObservedSinceSubmission = true;
+      }
 
       const strongStartSignal =
         (assistantBusy && !lastAssistantBusy) ||
@@ -116,20 +122,24 @@
       }
 
       if (awaitingResponse && activityObserved && hasAssistantSignal) {
-        compatibilityIssue = assistantBusyObservedSinceSubmission || completionReady
+        compatibilityIssue = assistantBusyObservedSinceSubmission || completionReady || stopObservedSinceSubmission
           ? null
           : 'completion-signal-unknown';
       }
 
       const idleFor = lastContentChangeAt === null ? 0 : now - lastContentChangeAt;
-      const strongIdleSignal = !stopVisible && (sendVisible || hasAssistantSignal);
       const busyCompletionReady = assistantBusyObservedSinceSubmission && !assistantBusy;
-      const completionConfirmed = !assistantBusy && (completionReady || busyCompletionReady);
-      const stableLongEnough = completionConfirmed
+      const strongCompletionReady = !assistantBusy && (completionReady || busyCompletionReady);
+      const lifecycleCompletionReady =
+        stopObservedSinceSubmission &&
+        !stopVisible &&
+        sendVisible &&
+        !assistantBusy;
+      const fallbackCompletionReady = lifecycleCompletionReady && idleFor >= fallbackStableMs;
+      const completionConfirmed = strongCompletionReady || fallbackCompletionReady;
+      const stableLongEnough = strongCompletionReady
         ? idleFor >= stableMs
-        : strongIdleSignal
-          ? idleFor >= stableMs
-          : !stopVisible && idleFor >= fallbackStableMs;
+        : fallbackCompletionReady;
       const completionSignature = hasAssistantSignal ? assistantSignature : '';
 
       if (
@@ -149,6 +159,7 @@
         awaitingResponse = false;
         activityObserved = false;
         assistantBusyObservedSinceSubmission = false;
+        stopObservedSinceSubmission = false;
         compatibilityIssue = null;
         lastCompletedSignature = completionSignature;
         lastContentChangeAt = null;
@@ -172,6 +183,7 @@
         activityObserved,
         submissionBaselinePending,
         assistantBusyObservedSinceSubmission,
+        stopObservedSinceSubmission,
         compatibilityIssue,
         lastAssistantCount,
         lastUserCount,
