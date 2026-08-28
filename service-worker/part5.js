@@ -1,3 +1,16 @@
+const MONITOR_RECOVERY_ALARM = 'chatgpt-notifier-monitor-recovery';
+
+function isChatGPTPageUrl(url) {
+  return /^https:\/\/(chatgpt\.com|chat\.openai\.com)\//.test(String(url || ''));
+}
+
+function scheduleMonitorRecovery() {
+  if (!chrome.alarms?.create) return;
+  chrome.alarms.create(MONITOR_RECOVERY_ALARM, { periodInMinutes: 0.5 });
+}
+
+scheduleMonitorRecovery();
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(['enabled', 'soundEnabled', 'soundVolume', 'tabMarkerEnabled'], (values) => {
     if (chrome.runtime.lastError) return;
@@ -8,12 +21,14 @@ chrome.runtime.onInstalled.addListener(() => {
     if (typeof values.tabMarkerEnabled !== 'boolean') defaults.tabMarkerEnabled = values.enabled !== false;
     if (Object.keys(defaults).length > 0) chrome.storage.local.set(defaults);
   });
+  scheduleMonitorRecovery();
   ensureMonitors().catch((error) => {
     console.error('Could not inject ChatGPT monitors after install:', error);
   });
 });
 
 chrome.runtime.onStartup?.addListener(() => {
+  scheduleMonitorRecovery();
   ensureMonitors().catch((error) => {
     console.error('Could not inject ChatGPT monitors on startup:', error);
   });
@@ -69,4 +84,19 @@ chrome.windows?.onFocusChanged?.addListener((windowId) => {
     .catch((error) => {
       console.warn('Could not clear marker from focused window:', error);
     });
+});
+
+chrome.alarms?.onAlarm?.addListener((alarm) => {
+  if (alarm?.name !== MONITOR_RECOVERY_ALARM) return;
+  ensureMonitors().catch((error) => {
+    console.warn('Could not recover ChatGPT monitors:', error);
+  });
+});
+
+chrome.tabs?.onUpdated?.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo?.status !== 'complete') return;
+  if (!isChatGPTPageUrl(tab?.url)) return;
+  ensureMonitor(tabId).catch((error) => {
+    console.warn('Could not ensure ChatGPT monitor after tab update:', error);
+  });
 });
