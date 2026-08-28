@@ -6,10 +6,13 @@ function isChatGPTPageUrl(url) {
 
 function scheduleMonitorRecovery() {
   if (!chrome.alarms?.create) return;
-  chrome.alarms.create(MONITOR_RECOVERY_ALARM, { periodInMinutes: 0.5 });
+  chrome.alarms.create(MONITOR_RECOVERY_ALARM, { periodInMinutes: 1 });
 }
 
 scheduleMonitorRecovery();
+ensureMonitors().catch((error) => {
+  console.warn('Could not ensure ChatGPT monitors on service-worker start:', error);
+});
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(['enabled', 'soundEnabled', 'soundVolume', 'tabMarkerEnabled'], (values) => {
