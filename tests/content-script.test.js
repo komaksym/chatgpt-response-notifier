@@ -140,3 +140,94 @@ test('fully detaches a monitor when its extension runtime is already invalidated
   assert.equal(markerStopped, true);
   assert.deepEqual(removedEvents.sort(), ['click', 'keydown', 'submit']);
 });
+
+
+test('PING exposes text-free streamTrace lifecycle state', () => {
+  let runtimeListener = null;
+  const windowListeners = new Map();
+  const documentObject = {
+    title: 'ChatGPT',
+    body: {},
+    documentElement: {},
+    addEventListener() {},
+    removeEventListener() {},
+    querySelector() { return null; },
+    querySelectorAll() { return []; }
+  };
+  const windowObject = {
+    location: { href: 'https://chatgpt.com/c/test' },
+    addEventListener(type, listener) { windowListeners.set(type, listener); },
+    removeEventListener(type) { windowListeners.delete(type); },
+    getComputedStyle() {
+      return { display: 'block', visibility: 'visible', opacity: '1' };
+    }
+  };
+  const chromeObject = {
+    runtime: {
+      onMessage: {
+        addListener(listener) { runtimeListener = listener; },
+        removeListener() {}
+      },
+      sendMessage(_message, callback) { callback({ ok: true }); },
+      lastError: null
+    }
+  };
+  const tabMarker = {
+    start() {},
+    stop() {},
+    sync() {},
+    getState() { return {}; }
+  };
+  const monitor = createMonitor({
+    documentObject,
+    windowObject,
+    chromeObject,
+    MutationObserverClass: class { observe() {} disconnect() {} },
+    tabMarker
+  });
+
+  monitor.start();
+  const lifecycleListener = windowListeners.get('__chatgpt_notifier_stream_lifecycle__');
+  assert.equal(typeof lifecycleListener, 'function');
+
+  lifecycleListener({
+    detail: JSON.stringify({
+      type: 'started',
+      at: 100,
+      requestId: '7',
+      responseText: 'must-not-leak'
+    })
+  });
+  lifecycleListener({
+    detail: JSON.stringify({
+      type: 'first_chunk',
+      at: 110,
+      requestId: '7',
+      responseText: 'must-not-leak'
+    })
+  });
+  lifecycleListener({
+    detail: JSON.stringify({
+      type: 'terminal',
+      at: 200,
+      requestId: '7',
+      responseText: 'must-not-leak'
+    })
+  });
+
+  let response = null;
+  runtimeListener({ type: 'CHATGPT_NOTIFIER_PING' }, {}, (value) => { response = value; });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.version, CONTENT_SCRIPT_VERSION);
+  assert.deepEqual(response.streamTrace.events, [
+    { type: 'started', at: 100, requestId: '7' },
+    { type: 'first_chunk', at: 110, requestId: '7' },
+    { type: 'terminal', at: 200, requestId: '7' }
+  ]);
+  assert.equal(response.streamTrace.lastTerminalAt, 200);
+  assert.deepEqual(response.streamTrace.activeRequestIds, []);
+  assert.equal(JSON.stringify(response.streamTrace).includes('must-not-leak'), false);
+
+  monitor.stop();
+});
