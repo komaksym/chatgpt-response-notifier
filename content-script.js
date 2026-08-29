@@ -43,10 +43,36 @@
     root.__chatgptNotifierMonitor.start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function contentFactory(detectorCore, domAdapter, tabMarkerModule) {
-  const CONTENT_SCRIPT_VERSION = '0.8.12';
+  const CONTENT_SCRIPT_VERSION = '0.8.14';
   const { createDetector } = detectorCore;
   const { collectSnapshot, isComposerInput, isSendControl } = domAdapter;
   const { createTabMarker } = tabMarkerModule;
+  const STREAM_EVENT_NAME = '__chatgpt_notifier_stream_lifecycle__';
+  const STREAM_TRACE_LIMIT = 32;
+
+  function createStreamTrace() {
+    return {
+      version: 1,
+      events: [],
+      activeRequestIds: [],
+      lastStartedAt: null,
+      lastFirstChunkAt: null,
+      lastTerminalAt: null,
+      lastErrorAt: null
+    };
+  }
+
+  function cloneStreamTrace(trace) {
+    return {
+      version: trace.version,
+      events: trace.events.map((event) => ({ ...event })),
+      activeRequestIds: [...trace.activeRequestIds],
+      lastStartedAt: trace.lastStartedAt,
+      lastFirstChunkAt: trace.lastFirstChunkAt,
+      lastTerminalAt: trace.lastTerminalAt,
+      lastErrorAt: trace.lastErrorAt
+    };
+  }
 
   function createMonitor({
     documentObject,
@@ -73,6 +99,8 @@
     let lastDispatch = null;
     let lastScanReason = 'not-started';
     let lastSubmissionAt = -Infinity;
+    let streamTrace = createStreamTrace();
+    const activeStreamRequestIds = new Set();
     const resolvedTabMarker = tabMarker || createTabMarker({ documentObject, windowObject });
 
     function resetForRoute(url) {
@@ -88,6 +116,41 @@
       lastDispatch = null;
     }
 
+    function streamLifecycleListener(event) {
+      let payload;
+      try {
+        payload = typeof event?.detail === 'string' ? JSON.parse(event.detail) : null;
+      } catch (_error) {
+        return;
+      }
+
+      if (!payload || !['started', 'first_chunk', 'terminal', 'error'].includes(payload.type)) return;
+      const at = Number(payload.at);
+      if (!Number.isFinite(at)) return;
+      const requestId = String(payload.requestId || '');
+      if (!requestId) return;
+
+      const lifecycleEvent = { type: payload.type, at, requestId };
+      streamTrace.events.push(lifecycleEvent);
+      if (streamTrace.events.length > STREAM_TRACE_LIMIT) {
+        streamTrace.events.splice(0, streamTrace.events.length - STREAM_TRACE_LIMIT);
+      }
+
+      if (payload.type === 'started') {
+        streamTrace.lastStartedAt = at;
+        activeStreamRequestIds.add(requestId);
+      } else if (payload.type === 'first_chunk') {
+        streamTrace.lastFirstChunkAt = at;
+      } else if (payload.type === 'terminal') {
+        streamTrace.lastTerminalAt = at;
+        activeStreamRequestIds.delete(requestId);
+      } else if (payload.type === 'error') {
+        streamTrace.lastErrorAt = at;
+        activeStreamRequestIds.delete(requestId);
+      }
+      streamTrace.activeRequestIds = [...activeStreamRequestIds];
+    }
+
     function failDispatch(event, error) {
       lastDispatch = {
         ok: false,
@@ -95,7 +158,6 @@
         event,
         timestamp: now()
       };
-      stop();
     }
 
     function sendEvent(event) {
@@ -119,9 +181,6 @@
           const error = runtime.lastError;
           if (error) {
             lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
-            if (/context invalidated|receiving end does not exist|could not establish connection/i.test(error.message || '')) {
-              stop();
-            }
             return;
           }
           lastDispatch = {
@@ -239,7 +298,8 @@
         tabMarker: resolvedTabMarker.getState(),
         lastSnapshot,
         lastDispatch,
-        lastScanReason
+        lastScanReason,
+        streamTrace: cloneStreamTrace(streamTrace)
       });
       return false;
     }
@@ -248,6 +308,7 @@
       if (started) return;
       started = true;
       chromeObject.runtime.onMessage.addListener(runtimeMessageListener);
+      windowObject.addEventListener?.(STREAM_EVENT_NAME, streamLifecycleListener, true);
       resolvedTabMarker.start();
       documentObject.addEventListener?.('click', clickListener, true);
       documentObject.addEventListener?.('keydown', keydownListener, true);
@@ -287,6 +348,7 @@
       documentObject.removeEventListener?.('click', clickListener, true);
       documentObject.removeEventListener?.('keydown', keydownListener, true);
       documentObject.removeEventListener?.('submit', submitListener, true);
+      windowObject.removeEventListener?.(STREAM_EVENT_NAME, streamLifecycleListener, true);
       try {
         chromeObject?.runtime?.onMessage?.removeListener?.(runtimeMessageListener);
       } catch (error) {
@@ -303,7 +365,8 @@
         tabMarker: resolvedTabMarker.getState(),
         lastSnapshot,
         lastDispatch,
-        lastScanReason
+        lastScanReason,
+        streamTrace: cloneStreamTrace(streamTrace)
       };
     }
 
