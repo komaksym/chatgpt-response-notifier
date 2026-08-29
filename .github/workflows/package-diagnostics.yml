@@ -28,7 +28,8 @@ jobs:
           node --check network-probe.js
 
       - name: Validate manifest JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')); console.log('manifest: OK')"
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')); console.log('manifest OK')"
 
       - name: Check diff whitespace
         run: git diff --check origin/main...HEAD
