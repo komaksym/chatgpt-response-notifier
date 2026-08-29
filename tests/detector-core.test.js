@@ -12,7 +12,10 @@ function snapshot({
   sendVisible = true,
   stopVisible = false,
   completionReady = false,
-  assistantBusy = false
+  assistantBusy = false,
+  streamActive = false,
+  streamLastStartedAt = null,
+  streamLastTerminalAt = null
 }) {
   return {
     now,
@@ -26,6 +29,9 @@ function snapshot({
     stopVisible,
     completionReady,
     assistantBusy,
+    streamActive,
+    streamLastStartedAt,
+    streamLastTerminalAt,
     actionFingerprint: null,
     actionLabel: null
   };
@@ -409,4 +415,66 @@ test('clears compatibility warning once a recognized completion signal appears',
   }));
 
   assert.equal(detector.getState().compatibilityIssue, null);
+});
+
+
+test('completes after Stop when the conversation stream terminates but Send stays unavailable', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'draft-answer',
+    assistantText: 'Draft response.',
+    sendVisible: false,
+    stopVisible: true,
+    completionReady: false,
+    assistantBusy: false,
+    streamActive: true,
+    streamLastStartedAt: 15
+  }));
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 100,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'final-answer',
+    assistantText: 'Finished in the background.',
+    sendVisible: false,
+    stopVisible: false,
+    completionReady: false,
+    assistantBusy: false,
+    streamActive: false,
+    streamLastStartedAt: 15,
+    streamLastTerminalAt: 90
+  })), []);
+
+  assert.deepEqual(
+    detector.scan(snapshot({
+      now: 450,
+      userCount: 2,
+      assistantCount: 2,
+      assistantSignature: 'final-answer',
+      assistantText: 'Finished in the background.',
+      sendVisible: false,
+      stopVisible: false,
+      completionReady: false,
+      assistantBusy: false,
+      streamActive: false,
+      streamLastStartedAt: 15,
+      streamLastTerminalAt: 90
+    })),
+    [{ type: 'response_complete', message: 'Finished in the background.' }]
+  );
 });
