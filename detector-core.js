@@ -158,7 +158,7 @@
         idleFor >= fallbackStableMs;
       const completionConfirmed = strongCompletionReady || fallbackCompletionReady;
       const stableLongEnough = strongCompletionReady
-        ? idleFor >= stableMs
+        ? idleFor >= stableMs || streamTerminalAfterSubmission
         : fallbackCompletionReady;
       const completionSignature = hasAssistantSignal ? assistantSignature : '';
 
