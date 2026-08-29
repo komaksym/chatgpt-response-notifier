@@ -130,3 +130,37 @@ test('does not suppress a hidden source page even if tab APIs transiently report
   assert.equal(result.notificationId, 'notification-id');
   assert.ok(getNotificationOptions());
 });
+
+
+test('still suppresses when page, tab, and window all agree the source is visible', async () => {
+  const { context, getNotificationOptions } = loadWorker({
+    tabActive: true,
+    windowFocused: true
+  });
+
+  const result = await context.handleChatGPTEvent(
+    {
+      event: { type: 'response_complete', message: 'Visible response.' },
+      page: {
+        title: 'Foreground task',
+        url: 'https://chatgpt.com/c/test',
+        visibilityState: 'visible'
+      }
+    },
+    {
+      tab: {
+        id: 42,
+        title: 'Foreground task',
+        url: 'https://chatgpt.com/c/test'
+      }
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.skipped, 'source_visible');
+  assert.equal(result.sourceVisibility.visible, true);
+  assert.equal(result.sourceVisibility.pageVisibilityState, 'visible');
+  assert.equal(result.sourceVisibility.tabActive, true);
+  assert.equal(result.sourceVisibility.windowFocused, true);
+  assert.equal(getNotificationOptions(), null);
+});
