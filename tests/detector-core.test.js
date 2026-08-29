@@ -478,3 +478,87 @@ test('completes after Stop when the conversation stream terminates but Send stay
     [{ type: 'response_complete', message: 'Finished in the background.' }]
   );
 });
+
+
+test('does not complete from a terminal stream unless Stop was observed for the submission', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'reasoning-intermediate',
+    assistantText: 'Still working.',
+    sendVisible: false,
+    stopVisible: false,
+    completionReady: false,
+    assistantBusy: false,
+    streamActive: false,
+    streamLastStartedAt: 15,
+    streamLastTerminalAt: 18
+  }));
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 1000,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'reasoning-intermediate',
+    assistantText: 'Still working.',
+    sendVisible: false,
+    stopVisible: false,
+    completionReady: false,
+    assistantBusy: false,
+    streamActive: false,
+    streamLastStartedAt: 15,
+    streamLastTerminalAt: 18
+  })), []);
+});
+
+test('does not complete while a conversation stream is still active', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 1,
+    assistantCount: 1,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'draft-answer',
+    assistantText: 'Draft.',
+    sendVisible: false,
+    stopVisible: true,
+    streamActive: true,
+    streamLastStartedAt: 15
+  }));
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 1000,
+    userCount: 2,
+    assistantCount: 2,
+    assistantSignature: 'draft-answer',
+    assistantText: 'Draft.',
+    sendVisible: false,
+    stopVisible: false,
+    streamActive: true,
+    streamLastStartedAt: 15,
+    streamLastTerminalAt: null
+  })), []);
+});
