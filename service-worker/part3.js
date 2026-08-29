@@ -23,17 +23,58 @@ function windowsUpdate(windowId, updateInfo) {
   });
 }
 
-async function isSourceTabVisible(tabId) {
+async function sourceTabVisibility(tabId, pageVisibilityState = null) {
+  const normalizedPageVisibility =
+    pageVisibilityState === 'visible' || pageVisibilityState === 'hidden'
+      ? pageVisibilityState
+      : null;
+
+  if (normalizedPageVisibility === 'hidden') {
+    return {
+      visible: false,
+      pageVisibilityState: 'hidden',
+      tabActive: null,
+      windowFocused: null,
+      reason: 'page_hidden'
+    };
+  }
+
   try {
     const tab = await tabsGet(tabId);
-    if (!tab?.active || !Number.isInteger(tab.windowId)) return false;
+    const tabActive = tab?.active === true;
+    if (!tabActive || !Number.isInteger(tab?.windowId)) {
+      return {
+        visible: false,
+        pageVisibilityState: normalizedPageVisibility,
+        tabActive,
+        windowFocused: null,
+        reason: tabActive ? 'window_unknown' : 'tab_inactive'
+      };
+    }
 
     const windowInfo = await windowsGet(tab.windowId);
-    return windowInfo?.focused === true;
+    const windowFocused = windowInfo?.focused === true;
+    return {
+      visible: tabActive && windowFocused,
+      pageVisibilityState: normalizedPageVisibility,
+      tabActive,
+      windowFocused,
+      reason: tabActive && windowFocused ? 'confirmed_visible' : 'window_unfocused'
+    };
   } catch (error) {
     console.warn('Could not determine whether the ChatGPT tab is visible; notifying instead:', error);
-    return false;
+    return {
+      visible: false,
+      pageVisibilityState: normalizedPageVisibility,
+      tabActive: null,
+      windowFocused: null,
+      reason: 'visibility_check_failed'
+    };
   }
+}
+
+async function isSourceTabVisible(tabId, pageVisibilityState = null) {
+  return (await sourceTabVisibility(tabId, pageVisibilityState)).visible;
 }
 
 function truncate(text, maxLength = 220) {
