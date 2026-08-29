@@ -56,6 +56,13 @@
       const stopVisible = Boolean(snapshot.stopVisible);
       const completionReady = Boolean(snapshot.completionReady);
       const assistantBusy = Boolean(snapshot.assistantBusy);
+      const streamActive = Boolean(snapshot.streamActive);
+      const streamLastStartedAt = Number.isFinite(snapshot.streamLastStartedAt)
+        ? snapshot.streamLastStartedAt
+        : null;
+      const streamLastTerminalAt = Number.isFinite(snapshot.streamLastTerminalAt)
+        ? snapshot.streamLastTerminalAt
+        : null;
 
       if (!initialized) {
         initialized = true;
@@ -135,7 +142,20 @@
         !stopVisible &&
         sendVisible &&
         !assistantBusy;
-      const fallbackCompletionReady = lifecycleCompletionReady && idleFor >= fallbackStableMs;
+      const streamTerminalAfterSubmission =
+        lastSubmissionAt !== null &&
+        !streamActive &&
+        streamLastTerminalAt !== null &&
+        streamLastTerminalAt >= lastSubmissionAt &&
+        (streamLastStartedAt === null || streamLastStartedAt <= streamLastTerminalAt);
+      const streamLifecycleCompletionReady =
+        stopObservedSinceSubmission &&
+        !stopVisible &&
+        !assistantBusy &&
+        streamTerminalAfterSubmission;
+      const fallbackCompletionReady =
+        (lifecycleCompletionReady || streamLifecycleCompletionReady) &&
+        idleFor >= fallbackStableMs;
       const completionConfirmed = strongCompletionReady || fallbackCompletionReady;
       const stableLongEnough = strongCompletionReady
         ? idleFor >= stableMs
