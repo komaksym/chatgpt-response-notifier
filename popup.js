@@ -213,10 +213,7 @@ async function refreshTabStatus({ repair = false } = {}) {
   const injection = repair ? await ensureMonitors() : null;
 
   try {
-    const [tabs, serviceWorkerLastEvent] = await Promise.all([
-      queryChatGptTabs(),
-      readServiceWorkerLastEvent()
-    ]);
+    const tabs = await queryChatGptTabs();
     const results = await Promise.all(tabs.map(pingTab));
     const connected = results.filter((item) => item.connected);
     monitoredTabsElement.textContent = `${connected.length}/${tabs.length} connected`;
@@ -253,7 +250,10 @@ async function captureDiagnostics() {
   resultElement.textContent = 'Capturing existing monitor state without repair or tab activation…';
 
   try {
-    const tabs = await queryChatGptTabs();
+    const [tabs, serviceWorkerLastEvent] = await Promise.all([
+      queryChatGptTabs(),
+      readServiceWorkerLastEvent()
+    ]);
     const results = await Promise.all(tabs.map(pingTab));
     const connected = results.filter((item) => item.connected);
     monitoredTabsElement.textContent = `${connected.length}/${tabs.length} connected`;
