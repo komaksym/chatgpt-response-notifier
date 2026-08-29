@@ -18,8 +18,12 @@ async function handleChatGPTEvent(message, sender) {
     throw new Error('ChatGPT event did not include a source tab.');
   }
 
-  if (await isSourceTabVisible(tabId)) {
-    return { ok: true, skipped: 'source_visible' };
+  const sourceVisibility = await sourceTabVisibility(
+    tabId,
+    message?.page?.visibilityState || null
+  );
+  if (sourceVisibility.visible) {
+    return { ok: true, skipped: 'source_visible', sourceVisibility };
   }
 
   const body = truncate(event.message);
