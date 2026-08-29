@@ -169,7 +169,6 @@ function diagnosticTab(item) {
       assistantCount: snapshot.assistantCount ?? null,
       userCount: snapshot.userCount ?? null,
       lastAssistantSignature: snapshot.lastAssistantSignature ?? null,
-      lastAssistantText: snapshot.lastAssistantText ?? null,
       sendVisible: snapshot.sendVisible ?? null,
       stopVisible: snapshot.stopVisible ?? null,
       completionReady: snapshot.completionReady ?? null,
@@ -178,7 +177,34 @@ function diagnosticTab(item) {
       actionLabel: snapshot.actionLabel ?? null
     },
     lastDispatch: response.lastDispatch || null,
-    lastScanReason: response.lastScanReason || null
+    lastScanReason: response.lastScanReason || null,
+    streamTrace: response.streamTrace || null
+  };
+}
+
+function readServiceWorkerLastEvent() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get({ lastEvent: null }, (values) => {
+      const error = runtimeError();
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+      resolve(values.lastEvent || null);
+    });
+  });
+}
+
+function diagnosticServiceWorker(lastEvent) {
+  if (!lastEvent) return { lastEvent: null };
+  return {
+    lastEvent: {
+      type: lastEvent.type || null,
+      tabId: Number.isInteger(lastEvent.tabId) ? lastEvent.tabId : null,
+      timestamp: Number.isFinite(lastEvent.timestamp) ? lastEvent.timestamp : null,
+      notificationId: lastEvent.notificationId || null,
+      markerApplied: Boolean(lastEvent.markerApplied)
+    }
   };
 }
 
@@ -187,7 +213,10 @@ async function refreshTabStatus({ repair = false } = {}) {
   const injection = repair ? await ensureMonitors() : null;
 
   try {
-    const tabs = await queryChatGptTabs();
+    const [tabs, serviceWorkerLastEvent] = await Promise.all([
+      queryChatGptTabs(),
+      readServiceWorkerLastEvent()
+    ]);
     const results = await Promise.all(tabs.map(pingTab));
     const connected = results.filter((item) => item.connected);
     monitoredTabsElement.textContent = `${connected.length}/${tabs.length} connected`;
@@ -232,6 +261,7 @@ async function captureDiagnostics() {
     const diagnostics = {
       capturedAt: new Date().toISOString(),
       mode: 'passive-no-repair',
+      serviceWorker: diagnosticServiceWorker(serviceWorkerLastEvent),
       tabs: results.map(diagnosticTab)
     };
     latestDiagnosticsText = JSON.stringify(diagnostics, null, 2);
