@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/non-mutating-diagnostics
+      - test/stream-trace-e2e
   workflow_dispatch:
 
 jobs:
@@ -11,12 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run tests
+        run: node --test tests/*.test.js
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check content-script.js
+          node --check network-probe.js
+
+      - name: Validate manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')); console.log('manifest: OK')"
+
+      - name: Check diff whitespace
+        run: git diff --check origin/main...HEAD
 
       - name: Stage unpacked extension
         run: |
           mkdir -p dist
           cp manifest.json dist/
-          cp content-script.js detector-core.js dom-adapter.js page-utils.js tab-marker.js dist/
+          cp content-script.js network-probe.js detector-core.js dom-adapter.js page-utils.js tab-marker.js dist/
           cp popup.html popup.css popup.js dist/
           cp service-worker.js offscreen.html offscreen.js dist/
           cp -R icons service-worker sounds dist/
