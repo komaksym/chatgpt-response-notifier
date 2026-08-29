@@ -155,7 +155,7 @@
       lastDispatch = {
         ok: false,
         error: error instanceof Error ? error.message : String(error || 'Extension runtime unavailable.'),
-        event,
+        event: { type: event?.type || null },
         timestamp: now()
       };
     }
@@ -180,14 +180,19 @@
         runtime.sendMessage(payload, (response) => {
           const error = runtime.lastError;
           if (error) {
-            lastDispatch = { ok: false, error: error.message, event, timestamp: now() };
+            lastDispatch = {
+              ok: false,
+              error: error.message,
+              event: { type: event?.type || null },
+              timestamp: now()
+            };
             return;
           }
           lastDispatch = {
             ok: Boolean(response?.ok),
             skipped: response?.skipped || null,
             error: response?.error || null,
-            event,
+            event: { type: event?.type || null },
             timestamp: now()
           };
         });
