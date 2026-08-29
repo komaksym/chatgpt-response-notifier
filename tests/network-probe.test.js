@@ -124,5 +124,5 @@ test('manifest loads network probe in MAIN world at document_start', () => {
   assert.ok(probe);
   assert.equal(probe.run_at, 'document_start');
   assert.equal(probe.world, 'MAIN');
-  assert.equal(manifest.version, '0.8.15');
+  assert.equal(manifest.version, '0.8.16');
 });
