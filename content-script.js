@@ -193,6 +193,23 @@
             ok: Boolean(response?.ok),
             skipped: response?.skipped || null,
             error: response?.error || null,
+            sourceVisibility: response?.sourceVisibility
+              ? {
+                  visible: response.sourceVisibility.visible === true,
+                  pageVisibilityState: response.sourceVisibility.pageVisibilityState || null,
+                  tabActive: response.sourceVisibility.tabActive === true
+                    ? true
+                    : response.sourceVisibility.tabActive === false
+                      ? false
+                      : null,
+                  windowFocused: response.sourceVisibility.windowFocused === true
+                    ? true
+                    : response.sourceVisibility.windowFocused === false
+                      ? false
+                      : null,
+                  reason: response.sourceVisibility.reason || null
+                }
+              : null,
             event: { type: event?.type || null },
             timestamp: now()
           };
