@@ -166,7 +166,8 @@
         event,
         page: {
           title: documentObject.title || 'ChatGPT',
-          url: windowObject.location.href
+          url: windowObject.location.href,
+          visibilityState: documentObject.visibilityState || null
         }
       };
       const runtime = chromeObject?.runtime;
