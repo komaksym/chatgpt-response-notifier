@@ -591,27 +591,12 @@ test('completes when final response action and terminal stream are present despi
     streamLastStartedAt: 15
   }));
 
-  assert.deepEqual(detector.scan(snapshot({
-    now: 100,
-    userCount: 3,
-    assistantCount: 4,
-    assistantSignature: 'final-answer-with-late-dom-change-1',
-    assistantText: 'Finished response.',
-    sendVisible: false,
-    stopVisible: false,
-    completionReady: true,
-    assistantBusy: false,
-    streamActive: false,
-    streamLastStartedAt: 15,
-    streamLastTerminalAt: 90
-  })), []);
-
   assert.deepEqual(
     detector.scan(snapshot({
-      now: 200,
+      now: 100,
       userCount: 3,
       assistantCount: 4,
-      assistantSignature: 'final-answer-with-late-dom-change-2',
+      assistantSignature: 'final-answer-with-late-dom-change-1',
       assistantText: 'Finished response.',
       sendVisible: false,
       stopVisible: false,
@@ -623,4 +608,19 @@ test('completes when final response action and terminal stream are present despi
     })),
     [{ type: 'response_complete', message: 'Finished response.' }]
   );
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 200,
+    userCount: 3,
+    assistantCount: 4,
+    assistantSignature: 'final-answer-with-late-dom-change-2',
+    assistantText: 'Finished response.',
+    sendVisible: false,
+    stopVisible: false,
+    completionReady: true,
+    assistantBusy: false,
+    streamActive: false,
+    streamLastStartedAt: 15,
+    streamLastTerminalAt: 90
+  })), []);
 });
