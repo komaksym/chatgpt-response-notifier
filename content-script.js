@@ -222,7 +222,12 @@
       }
 
       resolvedTabMarker.sync();
-      const snapshot = collectSnapshot(documentObject, windowObject, now());
+      const snapshot = {
+        ...collectSnapshot(documentObject, windowObject, now()),
+        streamActive: activeStreamRequestIds.size > 0,
+        streamLastStartedAt: streamTrace.lastStartedAt,
+        streamLastTerminalAt: streamTrace.lastTerminalAt
+      };
       const events = detector.scan(snapshot);
       lastSnapshot = snapshot;
       lastScanReason = reason;
