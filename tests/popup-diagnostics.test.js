@@ -45,14 +45,25 @@ test('diagnostic JSON keeps the state needed to classify background misses', () 
     'assistantCount',
     'userCount',
     'lastAssistantSignature',
-    'lastAssistantText',
     'sendVisible',
     'stopVisible',
     'completionReady',
     'assistantBusy',
     'lastDispatch',
-    'lastScanReason'
+    'lastScanReason',
+    'streamTrace',
+    'serviceWorker',
+    'notificationId'
   ]) {
     assert.match(popupSource, new RegExp(field), `diagnostics should include ${field}`);
   }
+});
+
+
+test('diagnostic capture omits assistant response text', () => {
+  const diagnostic = popupSource.slice(
+    popupSource.indexOf('function diagnosticTab('),
+    popupSource.indexOf('function readServiceWorkerLastEvent(')
+  );
+  assert.doesNotMatch(diagnostic, /lastAssistantText/);
 });
