@@ -562,3 +562,65 @@ test('does not complete while a conversation stream is still active', () => {
     streamLastTerminalAt: null
   })), []);
 });
+
+
+test('completes when final response action and terminal stream are present despite post-stream DOM churn', () => {
+  const detector = createDetector({ stableMs: 100, fallbackStableMs: 300 });
+
+  detector.scan(snapshot({
+    now: 0,
+    userCount: 2,
+    assistantCount: 3,
+    assistantSignature: 'old-assistant',
+    assistantText: 'Old response.',
+    completionReady: true
+  }));
+  detector.markUserSubmitted(10);
+
+  detector.scan(snapshot({
+    now: 20,
+    userCount: 3,
+    assistantCount: 4,
+    assistantSignature: 'draft-answer',
+    assistantText: 'Draft response.',
+    sendVisible: false,
+    stopVisible: true,
+    completionReady: false,
+    assistantBusy: false,
+    streamActive: true,
+    streamLastStartedAt: 15
+  }));
+
+  assert.deepEqual(detector.scan(snapshot({
+    now: 100,
+    userCount: 3,
+    assistantCount: 4,
+    assistantSignature: 'final-answer-with-late-dom-change-1',
+    assistantText: 'Finished response.',
+    sendVisible: false,
+    stopVisible: false,
+    completionReady: true,
+    assistantBusy: false,
+    streamActive: false,
+    streamLastStartedAt: 15,
+    streamLastTerminalAt: 90
+  })), []);
+
+  assert.deepEqual(
+    detector.scan(snapshot({
+      now: 200,
+      userCount: 3,
+      assistantCount: 4,
+      assistantSignature: 'final-answer-with-late-dom-change-2',
+      assistantText: 'Finished response.',
+      sendVisible: false,
+      stopVisible: false,
+      completionReady: true,
+      assistantBusy: false,
+      streamActive: false,
+      streamLastStartedAt: 15,
+      streamLastTerminalAt: 90
+    })),
+    [{ type: 'response_complete', message: 'Finished response.' }]
+  );
+});
