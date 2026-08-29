@@ -111,3 +111,18 @@ test('probe source never reads or decodes response chunk contents', () => {
   assert.doesNotMatch(source, /\.text\s*\(/);
   assert.doesNotMatch(source, /\.json\s*\(/);
 });
+
+
+test('manifest loads network probe in MAIN world at document_start', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8')
+  );
+  const probe = manifest.content_scripts.find((entry) =>
+    Array.isArray(entry.js) && entry.js.includes('network-probe.js')
+  );
+
+  assert.ok(probe);
+  assert.equal(probe.run_at, 'document_start');
+  assert.equal(probe.world, 'MAIN');
+  assert.equal(manifest.version, '0.8.14');
+});
