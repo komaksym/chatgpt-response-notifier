@@ -4,12 +4,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function loadWorker() {
+function loadWorker({ tabActive = false, windowFocused = true } = {}) {
   let notificationOptions = null;
   const context = {
     console,
     Date,
-    tabsGet: async () => ({ active: false, windowId: 1 }),
+    runtimeError: () => null,
+    chrome: {
+      windows: {
+        get(_windowId, callback) {
+          callback({ focused: windowFocused });
+        }
+      }
+    },
+    tabsGet: async () => ({ active: tabActive, windowId: 1 }),
     storageGet: async () => ({
       enabled: true,
       soundEnabled: false,
@@ -91,4 +99,34 @@ test('action notification heading includes the conversation title', async () => 
     getNotificationOptions().title,
     'Action needed · Deploy production app'
   );
+});
+
+
+test('does not suppress a hidden source page even if tab APIs transiently report it active and focused', async () => {
+  const { context, getNotificationOptions } = loadWorker({
+    tabActive: true,
+    windowFocused: true
+  });
+
+  const result = await context.handleChatGPTEvent(
+    {
+      event: { type: 'response_complete', message: 'Finished in the background.' },
+      page: {
+        title: 'Background task',
+        url: 'https://chatgpt.com/c/test',
+        visibilityState: 'hidden'
+      }
+    },
+    {
+      tab: {
+        id: 42,
+        title: 'Background task',
+        url: 'https://chatgpt.com/c/test'
+      }
+    }
+  );
+
+  assert.equal(result.skipped, undefined);
+  assert.equal(result.notificationId, 'notification-id');
+  assert.ok(getNotificationOptions());
 });
