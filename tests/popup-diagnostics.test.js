@@ -67,3 +67,19 @@ test('diagnostic capture omits assistant response text', () => {
   );
   assert.doesNotMatch(diagnostic, /lastAssistantText/);
 });
+
+
+test('capture reads service-worker state independently of tab PINGs', () => {
+  const capture = functionSlice('captureDiagnostics', 'repairMonitors');
+  assert.match(capture, /readServiceWorkerLastEvent\s*\(/);
+  assert.match(capture, /serviceWorker:\s*diagnosticServiceWorker/);
+  assert.match(capture, /tabs\.map\(pingTab\)/);
+});
+
+test('service-worker diagnostics omit stored response message text', () => {
+  const start = popupSource.indexOf('function diagnosticServiceWorker(');
+  const end = popupSource.indexOf('async function refreshTabStatus(', start);
+  const diagnostic = popupSource.slice(start, end);
+  assert.doesNotMatch(diagnostic, /lastEvent\.message/);
+  assert.match(diagnostic, /notificationId/);
+});
